@@ -15,17 +15,26 @@ iface lo inet loopback
 
 iface enp2s0 inet manual
 
-{% if ansible_interfaces is defined %}
-{% for interface in ansible_interfaces %}
-{% if interface.startswith('enx') %}
-iface {{ interface }} inet manual
-{% endif %}
-{% endfor %}
+# USB Network Configuration - Host-specific configuration
+{% if inventory_hostname == 'pve-0.fabricesemti.dev' %}
+auto enx7cc2c64ca36f
+iface enx7cc2c64ca36f inet static
+    address 10.0.70.10/24
+{% elif inventory_hostname == 'pve-1.fabricesemti.dev' %}
+auto enx7cc2c64b6389
+iface enx7cc2c64b6389 inet static
+    address 10.0.70.11/24
+{% elif inventory_hostname == 'pve-2.fabricesemti.dev' %}
+auto enx7cc2c64b4dc4
+iface enx7cc2c64b4dc4 inet static
+    address 10.0.70.12/24
 {% endif %}
 
-auto eth0
-iface eth0 inet static
-    address 10.0.70.{{ ansible_host.split('.')[-1] }}/24
+# The eth0 interface might be conflicting with the USB interface
+# Commenting out for now
+#auto eth0
+#iface eth0 inet static
+#    address 10.0.70.{{ ansible_host.split('.')[-1] }}/24
 
 auto vmbr0
 iface vmbr0 inet static
@@ -35,8 +44,6 @@ iface vmbr0 inet static
     bridge-stp off
     bridge-fd 0
 
-{% if ansible_interfaces is defined and ('wlp3s0' in ansible_interfaces) %}
 iface wlp3s0 inet manual
-{% endif %}
 
 source /etc/network/interfaces.d/*

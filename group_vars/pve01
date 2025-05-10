@@ -1,4 +1,8 @@
 ---
+
+# ---------------------------------------------------------------------------- #
+#                                  PVE cluster                                 #
+# ---------------------------------------------------------------------------- #
 pve_group: pve01
 pve_watchdog: ipmi
 # pve_ssl_private_key: "{{ lookup('file', pve_group + '/' + inventory_hostname + '.key') }}"
@@ -22,7 +26,22 @@ pve_cluster_enabled: yes
 #   - path: /
 #     roles: [ "Administrator" ]
 #     groups: [ "ops" ]
+
+# ---------------------------------------------------------------------------- #
+#                                  PVE storage                                 #
+# ---------------------------------------------------------------------------- #
+# pve_zfs_create_volumes:
+#   - rpool/iso
 pve_storages:
+# - name: zfsdir
+#   type: dir
+#   path: /rpool/zfsdir
+#   content:
+#     [
+#       "snippets", # Snippet files, for example guest hook scripts
+#       "images", # QEMU/KVM VM images.
+#       "rootdir" # Allow to store container data.
+#     ]
 - name: localdir
   type: dir
   content:
@@ -40,7 +59,7 @@ pve_storages:
     [
       "backup" # Backup files (vzdump).
     ]
-  maxfiles: 4 # only for Backup storage!
+  # maxfiles: 4 # only for Backup storage!
 - name: nfs-proxmox-iso
   type: nfs
   server: 10.0.40.2
@@ -57,6 +76,87 @@ pve_storages:
     [
       "vztmpl" # Container templates
     ]
+- name: ceph1
+  type: rbd
+  content: [ "images", "rootdir" ]
+  nodes: [ "lab-node01.local", "lab-node02.local" ]
+  username: admin
+  pool: rbd
+  krbd: yes
+  monhost:
+  - 10.0.0.1
+  - 10.0.0.2
+  - 10.0.0.3
+# ---------------------------------------------------------------------------- #
+#                             PVE networking                                   #
+# ---------------------------------------------------------------------------- #
 pve_ssh_port: 22
-
 interfaces_template: "interfaces-{{ pve_group }}.j2"
+
+# ---------------------------------------------------------------------------- #
+#                                     CEPH                                     #
+# ---------------------------------------------------------------------------- #
+pve_ceph_enabled: true
+
+pve_ceph_network: '10.0.70.0/24'
+pve_ceph_cluster_network: '10.0.70.0/24'
+
+#! maybe wiat here?
+
+# pve_ceph_nodes: "ceph_nodes"
+pve_ceph_osds:
+# OSD with everything on the same device
+- device: /dev/sda
+# # OSD with block.db/WAL on another device
+# - device: /dev/sdd
+#   block.db: /dev/sdb1
+# # encrypted OSD with everything on the same device
+# - device: /dev/sdc
+#   encrypted: true
+# # encrypted OSD with block.db/WAL on another device
+# - device: /dev/sdd
+#   block.db: /dev/sdb1
+#   encrypted: true
+# Crush rules for different storage classes
+# By default 'type' is set to host, you can find valid types at
+# (https://docs.ceph.com/en/latest/rados/operations/crush-map/)
+# listed under 'TYPES AND BUCKETS'
+pve_ceph_crush_rules:
+- name: replicated_rule
+  type: osd
+- name: ssd # Changed from 'hdd' to 'ssd'
+  class: ssd # Changed from 'hdd' to 'ssd'
+  type: host
+
+pve_ceph_pools:
+- name: ssd # Changed from 'hdd' to 'ssd'
+  pgs: 32
+  rule: ssd # Changed from 'hdd' to 'ssd'
+  application: rbd
+  storage: true
+  size: 2
+  min-size: 1
+
+# # This Ceph pool uses custom autoscale mode : "off" | "on" | "warn"> (default = "warn")
+#   - name: vm-storage
+#     pgs: 128
+#     rule: replicated_rule
+#     application: rbd
+#     autoscale_mode: "on"
+#     storage: true
+
+# pve_ceph_fs:
+# # A CephFS filesystem not defined as a Proxmox storage
+#   - name: backup
+#     pgs: 64
+#     rule: hdd
+#     storage: false
+#     mountpoint: /srv/proxmox/backup
+
+# # ---------------------------------------------------------------------------- #
+# #                                      ZFS                                     #
+# # ---------------------------------------------------------------------------- #
+# pve_zfs_enabled: true
+# # pve_zfs_options: "" # modprobe parameters to pass to zfs module on boot/modprobe
+# pve_zfs_zed_email: "automations.fs@gmail.com" # Should be set to an email to receive ZFS notifications
+# pve_zfs_create_volumes: [] # List of ZFS Volumes to create (to use as PVE Storages). See section on Storage Management.
