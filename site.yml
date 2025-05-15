@@ -1,10 +1,16 @@
 ---
+
+# ---------------------------------------------------------------------------- #
+#                                  Preparation                                 #
+# ---------------------------------------------------------------------------- #
+
+# ---------------------------------- Set NTP --------------------------------- #
 - hosts: all
   become: True
   roles:
   - geerlingguy.ntp
 
-# Add a new play for SSH key deployment
+# ------------------------------ Deploy SSH key ------------------------------ #
 - hosts: pve01
   become: True
   tasks:
@@ -15,7 +21,7 @@
       key: "{{ lookup('file', playbook_dir + '/files/root_pve_rsa.pub') }}"
       comment: "Ansible automation key"
 
-# Leave this out if you're not modifying networking through Ansible
+# ---------------------- Configure networking [optional] --------------------- #
 - hosts: pve01
   become: True
   serial: 1
@@ -41,7 +47,16 @@
         delay: 15
     when: _configure_interfaces is changed
 
+# ---------------------------------------------------------------------------- #
+#                                Deploy Proxmox                                #
+# ---------------------------------------------------------------------------- #
 - hosts: pve01
   become: True
   roles:
   - lae.proxmox
+
+# ---------------------------------------------------------------------------- #
+#                                Post-deployment                               #
+# ---------------------------------------------------------------------------- #
+
+# ----------------------------- Configure backups ---------------------------- #

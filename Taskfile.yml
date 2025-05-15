@@ -1,0 +1,26 @@
+version: '3'
+
+vars:
+  TAGS: ''
+
+tasks:
+  init:
+    desc: Install Ansible Galaxy requirements
+    cmds:
+    - ansible-galaxy install -r roles/requirements.yml --force
+
+  check:
+    desc: Ansible dry run with diff
+    cmds:
+    - |
+      ansible-playbook -i inventory site.yml -e '{"pve_reboot_on_kernel_update": true}' --check --diff
+
+  apply:
+    desc: Apply Ansible playbook
+    cmds:
+    - |
+      ansible-playbook -i inventory site.yml -e '{"pve_reboot_on_kernel_update": true}'
+
+  default:
+    cmds:
+    - task --list
