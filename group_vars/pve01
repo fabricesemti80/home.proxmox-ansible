@@ -79,14 +79,15 @@ pve_storages:
 - name: ceph1
   type: rbd
   content: [ "images", "rootdir" ]
-  nodes: [ "lab-node01.local", "lab-node02.local" ]
-  username: admin
-  pool: rbd
+  nodes: "pve-0,pve-1,pve-2" # Comma-separated string
+  # username: admin
+  pool: vm-storage
   krbd: yes
   monhost:
-  - 10.0.0.1
-  - 10.0.0.2
-  - 10.0.0.3
+  - 10.0.70.10
+  - 10.0.70.11
+  - 10.0.70.12
+
 # ---------------------------------------------------------------------------- #
 #                             PVE networking                                   #
 # ---------------------------------------------------------------------------- #
@@ -101,62 +102,46 @@ pve_ceph_enabled: true
 pve_ceph_network: '10.0.70.0/24'
 pve_ceph_cluster_network: '10.0.70.0/24'
 
-#! maybe wiat here?
-
-# pve_ceph_nodes: "ceph_nodes"
 pve_ceph_osds:
 # OSD with everything on the same device
 - device: /dev/sda
-# # OSD with block.db/WAL on another device
-# - device: /dev/sdd
-#   block.db: /dev/sdb1
-# # encrypted OSD with everything on the same device
-# - device: /dev/sdc
-#   encrypted: true
-# # encrypted OSD with block.db/WAL on another device
-# - device: /dev/sdd
-#   block.db: /dev/sdb1
-#   encrypted: true
-# Crush rules for different storage classes
-# By default 'type' is set to host, you can find valid types at
-# (https://docs.ceph.com/en/latest/rados/operations/crush-map/)
-# listed under 'TYPES AND BUCKETS'
-pve_ceph_crush_rules:
-- name: replicated_rule
-  type: osd
-- name: ssd # Changed from 'hdd' to 'ssd'
-  class: ssd # Changed from 'hdd' to 'ssd'
-  type: host
+
+# pve_ceph_crush_rules:
+# - name: replicated_rule
+#   type: host
+#   failure_domain: osd
+# - name: ssd
+#   type: host
+#   class: ssd
+#   failure_domain: osd
 
 pve_ceph_pools:
-- name: ssd # Changed from 'hdd' to 'ssd'
+- name: ssd
   pgs: 32
-  rule: ssd # Changed from 'hdd' to 'ssd'
+  rule: ssd
   application: rbd
   storage: true
   size: 2
   min-size: 1
 
-# # This Ceph pool uses custom autoscale mode : "off" | "on" | "warn"> (default = "warn")
-#   - name: vm-storage
-#     pgs: 128
-#     rule: replicated_rule
-#     application: rbd
-#     autoscale_mode: "on"
-#     storage: true
+- name: vm-storage
+  pgs: 128
+  rule: replicated_rule
+  application: rbd
+  autoscale_mode: "on"
+  storage: true
 
-# pve_ceph_fs:
-# # A CephFS filesystem not defined as a Proxmox storage
-#   - name: backup
-#     pgs: 64
-#     rule: hdd
-#     storage: false
-#     mountpoint: /srv/proxmox/backup
-
-# # ---------------------------------------------------------------------------- #
-# #                                      ZFS                                     #
-# # ---------------------------------------------------------------------------- #
-# pve_zfs_enabled: true
-# # pve_zfs_options: "" # modprobe parameters to pass to zfs module on boot/modprobe
-# pve_zfs_zed_email: "automations.fs@gmail.com" # Should be set to an email to receive ZFS notifications
-# pve_zfs_create_volumes: [] # List of ZFS Volumes to create (to use as PVE Storages). See section on Storage Management.
+pve_ceph_fs:
+- name: cephfs-vm
+  pgs: 64
+  rule: replicated_rule
+  storage: true
+  mountpoint: /mnt/pve/cephfs-vm
+  content: [ "images", "rootdir" ] # For VM images and container root directories
+  # # ---------------------------------------------------------------------------- #
+  # #                                      ZFS                                     #
+  # # ---------------------------------------------------------------------------- #
+  # pve_zfs_enabled: true
+  # # pve_zfs_options: "" # modprobe parameters to pass to zfs module on boot/modprobe
+  # pve_zfs_zed_email: "automations.fs@gmail.com" # Should be set to an email to receive ZFS notifications
+  # pve_zfs_create_volumes: [] # List of ZFS Volumes to create (to use as PVE Storages). See section on Storage Management.
