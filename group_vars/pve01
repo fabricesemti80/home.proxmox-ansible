@@ -28,6 +28,38 @@ pve_cluster_enabled: yes
 #     groups: [ "ops" ]
 
 # ---------------------------------------------------------------------------- #
+#                        Additional PVE users                                  #
+# ---------------------------------------------------------------------------- #
+
+# Define a group for API automation operations
+pve_groups:
+- name: api-automation
+  comment: API Automation Tools Group (Packer, Terraform, etc.)
+
+# Create the packer user
+pve_users:
+- name: packer@pve
+  email: automations.fs@gmail.com
+  firstname: Packer
+  lastname: Automation
+  groups: [ "api-automation" ]
+# You can add terraform user later like this:
+# - name: terraform@pve
+#   email: automations.fs@gmail.com
+#   firstname: Terraform
+#   lastname: Automation
+#   groups: ["api-automation"]
+
+# Set appropriate ACLs for the API automation group
+pve_acls:
+- path: /
+  roles: [ "PVEVMAdmin" ] # VM administration role
+  groups: [ "api-automation" ]
+- path: /storage
+  roles: [ "PVEDatastoreUser" ] # Storage access
+  groups: [ "api-automation" ]
+
+# ---------------------------------------------------------------------------- #
 #                                  PVE storage                                 #
 # ---------------------------------------------------------------------------- #
 # pve_zfs_create_volumes:
