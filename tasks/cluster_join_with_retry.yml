@@ -1,0 +1,21 @@
+---
+# More robust cluster join with retries and better error handling
+- name: Check if node is already in cluster
+  command: pvecm status
+  register: cluster_status
+  failed_when: false
+  changed_when: false
+
+- name: Join cluster with retry logic
+  command: >
+    pvecm add {{ hostvars[_init_node]['ansible_host'] }}
+    --ring0_addr {{ pve_cluster_addr0 }}
+    --nodeid {{ pve_cluster_node_id | default(omit) }}
+  register: cluster_join_result
+  retries: 3
+  delay: 30
+  until: cluster_join_result.rc == 0
+  when: 
+    - cluster_status.rc != 0 or 'cluster' not in cluster_status.stdout
+    - inventory_hostname != _init_node
+  timeout: 900  # 15 minutes
