@@ -223,6 +223,9 @@ sudo systemctl restart sshd
 # Check for Ceph volumes with
 lsblk
 
+# Check if LVM tools are installed
+which pvs || apt update && apt install -y lvm2
+
 # If found, stop Ceph
 systemctl stop ceph-osd@*
 
@@ -233,12 +236,11 @@ lvremove ceph-fb745f13-d769-4943-8a42-3ed9606a77f3/osd-block-5136f691-5432-48f5-
 vgremove ceph-fb745f13-d769-4943-8a42-3ed9606a77f3
 
 # Remove physical volume info
-pvremove /dev/sda
+pvremove /dev/sda  # (or pveremove /dev/nvme0n1 if Ceph was on this)
 
 # install gdisk
 apt install gdisk
 
 # Wipe disk
-sgdisk --zap-all /dev/sda
-
+sgdisk --zap-all /dev/sda # (or sgdisk --zap-all /dev/nvme0n1 if Ceph was on this)
 ```
