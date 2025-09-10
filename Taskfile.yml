@@ -33,6 +33,12 @@ tasks:
       - |
         ansible-playbook -i inventory add_remaining_nodes.yml
 
+  configure-network:
+    desc: Configure secondary network interfaces (10.0.70.0/24)
+    cmds:
+      - |
+        ansible-playbook -i inventory configure_secondary_network.yml
+
   default:
     cmds:
       - task --list

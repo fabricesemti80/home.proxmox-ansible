@@ -156,11 +156,10 @@ pve_ceph_pools:
     application: rbd
     autoscale_mode: "on"
     storage: true
-
-pve_ceph_fs:
-  - name: cephfs-vm
-    pgs: 64
-    rule: replicated_rule
-    storage: true
-    mountpoint: /mnt/pve/cephfs-vm
-    content: ["images", "rootdir"] # For VM images and container root directories
+# pve_ceph_fs:
+#   - name: cephfs-vm
+#     pgs: 64
+#     rule: replicated_rule
+#     storage: true
+#     mountpoint: /mnt/pve/cephfs-vm
+#     content: ["images", "rootdir"] # For VM images and container root directories
