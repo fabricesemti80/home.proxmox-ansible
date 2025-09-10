@@ -114,3 +114,12 @@
   tags: backup
   roles:
     - proxmox_backup
+
+# --------------------------- Generate API tokens ---------------------------- #
+- hosts: pve01
+  become: True
+  tags: api_tokens
+  roles:
+    - proxmox_api_tokens
+
+# ------------------------------ Create API tokens ---------------------------- #

@@ -1,0 +1,24 @@
+---
+# Proxmox API Token Generation defaults
+
+# API tokens to generate
+api_tokens:
+  - user: "packer@pve"
+    token_name: "automation"
+    comment: "Packer automation token"
+    expire: 0  # Never expire (0 = no expiration)
+    privsep: 0  # Disable privilege separation (required for automation tools)
+    
+  - user: "terraform@pve"
+    token_name: "automation"
+    comment: "Terraform automation token"
+    expire: 0  # Never expire
+    privsep: 0  # Disable privilege separation (required for automation tools)
+
+# Token storage configuration
+token_storage:
+  directory: "tokens"  # Directory to store token files
+  file_mode: "0600"    # Restrictive file permissions
+  
+# Token file naming pattern: {directory}/{user}-{token_name}.token
+# Example: tokens/packer@pve-automation.token

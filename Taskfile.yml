@@ -103,6 +103,12 @@ tasks:
     cmds:
       - ansible-playbook -i inventory --tags backup site.yml
 
+  tokens-only:
+    desc: Generate API tokens for Packer and Terraform (skip other deployment steps)
+    deps: [check-env]
+    cmds:
+      - ansible-playbook -i inventory --tags api_tokens site.yml
+
   default:
     cmds:
       - task --list
