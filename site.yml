@@ -69,13 +69,32 @@
         delay: 15
     when: _configure_interfaces is changed
 
-# # ---------------------------------------------------------------------------- #
-# #                                Deploy Proxmox                                #
-# # ---------------------------------------------------------------------------- #
-# - hosts: pve01
-#   become: True
-#   roles:
-#   - lae.proxmox
+# ---------------------------------------------------------------------------- #
+#                                Deploy Proxmox                                #
+# ---------------------------------------------------------------------------- #
+- hosts: pve01
+  become: True
+  pre_tasks:
+    # Ensure hostname resolution for all cluster nodes
+    - name: Add cluster hostnames to /etc/hosts
+      lineinfile:
+        path: /etc/hosts
+        regexp: "^{{ hostvars[item]['ansible_host'] }}\\s+{{ item }}"
+        line: "{{ hostvars[item]['ansible_host'] }} {{ item }}.fabricesemti.dev {{ item }}"
+        backup: yes
+      loop: "{{ groups['pve01'] }}"
+      when: hostvars[item]['ansible_host'] is defined
+  roles:
+  - lae.proxmox
+  post_tasks:
+    # Apply our working SSH cluster configuration
+    - name: Apply custom SSH cluster configuration
+      include_tasks: tasks/ssh_cluster_simple.yml
+  handlers:
+    - name: restart sshd
+      systemd:
+        name: sshd
+        state: restarted
 
 # ---------------------------------------------------------------------------- #
 #                                Post-deployment                               #

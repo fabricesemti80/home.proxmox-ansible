@@ -1,5 +1,4 @@
 ---
-
 # ---------------------------------------------------------------------------- #
 #                                  PVE cluster                                 #
 # ---------------------------------------------------------------------------- #
@@ -33,31 +32,31 @@ pve_cluster_enabled: yes
 
 # Define a group for API automation operations
 pve_groups:
-- name: api-automation
-  comment: API Automation Tools Group (Packer, Terraform, etc.)
+  - name: api-automation
+    comment: API Automation Tools Group (Packer, Terraform, etc.)
 
 # Create the packer user
 pve_users:
-- name: packer@pve
-  email: automations.fs@gmail.com
-  firstname: Packer
-  lastname: Automation
-  groups: [ "api-automation" ]
-# You can add terraform user later like this:
-# - name: terraform@pve
-#   email: automations.fs@gmail.com
-#   firstname: Terraform
-#   lastname: Automation
-#   groups: ["api-automation"]
+  - name: packer@pve
+    email: automations.fs@gmail.com
+    firstname: Packer
+    lastname: Automation
+    groups: ["api-automation"]
+You can add terraform user later like this:
+  - name: terraform@pve
+    email: automations.fs@gmail.com
+    firstname: Terraform
+    lastname: Automation
+    groups: ["api-automation"]
 
 # Set appropriate ACLs for the API automation group
 pve_acls:
-- path: /
-  roles: [ "PVEVMAdmin" ] # VM administration role
-  groups: [ "api-automation" ]
-- path: /storage
-  roles: [ "PVEDatastoreUser" ] # Storage access
-  groups: [ "api-automation" ]
+  - path: /
+    roles: ["PVEVMAdmin"] # VM administration role
+    groups: ["api-automation"]
+  - path: /storage
+    roles: ["PVEDatastoreUser"] # Storage access
+    groups: ["api-automation"]
 
 # ---------------------------------------------------------------------------- #
 #                                  PVE storage                                 #
@@ -65,108 +64,103 @@ pve_acls:
 # pve_zfs_create_volumes:
 #   - rpool/iso
 pve_storages:
-# - name: zfsdir
-#   type: dir
-#   path: /rpool/zfsdir
-#   content:
-#     [
-#       "snippets", # Snippet files, for example guest hook scripts
-#       "images", # QEMU/KVM VM images.
-#       "rootdir" # Allow to store container data.
-#     ]
-- name: localdir
-  type: dir
-  content:
-    [
-      "snippets", # Snippet files, for example guest hook scripts
-      "images", # QEMU/KVM VM images.
-      "rootdir" # Allow to store container data.
-    ]
-  path: /plop
-- name: nfs-proxmox-backup
-  type: nfs
-  server: 10.0.40.2
-  export: /proxmox-backup
-  content:
-    [
-      "backup" # Backup files (vzdump).
-    ]
-  # maxfiles: 4 # only for Backup storage!
-- name: nfs-proxmox-iso
-  type: nfs
-  server: 10.0.40.2
-  export: /proxmox-iso
-  content:
-    [
-      "iso" # ISO images
-    ]
-- name: nfs-proxmox-template
-  type: nfs
-  server: 10.0.40.2
-  export: /proxmox-template
-  content:
-    [
-      "vztmpl" # Container templates
-    ]
-- name: ceph1
-  type: rbd
-  content: [ "images", "rootdir" ]
-  nodes: "pve-0,pve-1,pve-2" # Comma-separated string
-  # username: admin
-  pool: vm-storage
-  krbd: yes
-  monhost:
-  - 10.0.70.10
-  - 10.0.70.11
-  - 10.0.70.12
+  # - name: zfsdir
+  #   type: dir
+  #   path: /rpool/zfsdir
+  #   content:
+  #     [
+  #       "snippets", # Snippet files, for example guest hook scripts
+  #       "images", # QEMU/KVM VM images.
+  #       "rootdir" # Allow to store container data.
+  #     ]
+  - name: localdir
+    type: dir
+    content: [
+        "snippets", # Snippet files, for example guest hook scripts
+        "images", # QEMU/KVM VM images.
+        "rootdir", # Allow to store container data.
+      ]
+    path: /plop
+  - name: nfs-proxmox-backup
+    type: nfs
+    server: 10.0.40.2
+    export: /proxmox-backup
+    content: [
+        "backup", # Backup files (vzdump).
+      ]
+    # maxfiles: 4 # only for Backup storage!
+  - name: nfs-proxmox-iso
+    type: nfs
+    server: 10.0.40.2
+    export: /proxmox-iso
+    content: [
+        "iso", # ISO images
+      ]
+  - name: nfs-proxmox-template
+    type: nfs
+    server: 10.0.40.2
+    export: /proxmox-template
+    content: [
+        "vztmpl", # Container templates
+      ]
+  # - name: ceph1
+  #   type: rbd
+  #   content: ["images", "rootdir"]
+  #   nodes: "pve-0,pve-1,pve-2" # Comma-separated string
+  #   # username: admin
+  #   pool: vm-storage
+  #   krbd: yes
+  #   monhost:
+  #     - 10.0.70.10
+  #     - 10.0.70.11
+  #     - 10.0.70.12
 
 # ---------------------------------------------------------------------------- #
 #                             PVE networking                                   #
 # ---------------------------------------------------------------------------- #
 pve_ssh_port: 22
 interfaces_template: "interfaces-{{ pve_group }}.j2"
+# # ---------------------------------------------------------------------------- #
+# #                                     CEPH                                     #
+# # ---------------------------------------------------------------------------- #
+# pve_ceph_enabled: true
 
-# ---------------------------------------------------------------------------- #
-#                                     CEPH                                     #
-# ---------------------------------------------------------------------------- #
-pve_ceph_enabled: true
+# pve_ceph_network: "10.0.70.0/24"
+# pve_ceph_cluster_network: "10.0.70.0/24"
 
-pve_ceph_network: '10.0.70.0/24'
-pve_ceph_cluster_network: '10.0.70.0/24'
+# pve_ceph_osds:
+#   # OSD with everything on the same device - using NVMe for better performance
+#   - device: /dev/nvme0n1
 
-pve_ceph_osds:
-# OSD with everything on the same device
-- device: /dev/sda
+# # pve_ceph_crush_rules:
+# # - name: replicated_rule
+# #   type: host
+# #   failure_domain: osd
+# # - name: ssd
+# #   type: host
+# #   class: ssd
+# #   failure_domain: osd
 
-# pve_ceph_crush_rules:
-# - name: replicated_rule
-#   type: host
-#   failure_domain: osd
-# - name: ssd
-#   type: host
-#   class: ssd
-#   failure_domain: osd
+# pve_ceph_pools:
+#   - name: ssd
+#     pgs: 32
+#     rule: ssd
+#     application: rbd
+#     storage: true
+#     size: 2
+#     min-size: 1
 
-pve_ceph_pools:
-- name: ssd
-  pgs: 32
-  rule: ssd
-  application: rbd
-  storage: true
-  size: 2
-  min-size: 1
+#   - name: vm-storage
+#     pgs: 128
+#     rule: replicated_rule
+#     application: rbd
+#     autoscale_mode: "on"
+#     storage: true
 
-- name: vm-storage
-  pgs: 128
-  rule: replicated_rule
-  application: rbd
-  autoscale_mode: "on"
-  storage: true
-
-pve_ceph_fs:
-- name: cephfs-vm
-  pgs: 64
-  rule: replicated_rule
-  storage: true
-  mountpoint: /mnt/pve/cephfs-vm
-  content: [ "images", "rootdir" ] # For VM images and container root directories
+# pve_ceph_fs:
+#   - name: cephfs-vm
+#     pgs: 64
+#     rule: replicated_rule
+#     storage: true
+#     mountpoint: /mnt/pve/cephfs-vm
+#     content: ["images", "rootdir"] # For VM images and container root directories

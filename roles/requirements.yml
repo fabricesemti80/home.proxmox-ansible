@@ -1,3 +1,5 @@
 ---
 - src: geerlingguy.ntp
-- src: lae.proxmox
+- src: https://github.com/lae/ansible-role-proxmox.git
+  name: lae.proxmox
+  version: develop #main

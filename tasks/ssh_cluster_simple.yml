@@ -1,0 +1,26 @@
+---
+# Simple SSH cluster configuration that works
+- name: Ensure SSH config directory exists
+  file:
+    path: /etc/ssh/sshd_config.d
+    state: directory
+    mode: "0755"
+
+- name: Allow root logins from PVE cluster hosts
+  blockinfile:
+    path: /etc/ssh/sshd_config.d/pve-cluster.conf
+    create: yes
+    mode: "0644"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - PVE Cluster SSH"
+    block: |
+      # Allow root login from cluster nodes
+      Match Address {{ groups['pve01'] | map('extract', hostvars, 'ansible_host') | join(',') }}
+          PermitRootLogin yes
+    validate: /usr/sbin/sshd -t -f %s
+  notify: restart sshd
+
+- name: Ensure sshd service is enabled and started
+  systemd:
+    name: sshd
+    enabled: yes
+    state: started

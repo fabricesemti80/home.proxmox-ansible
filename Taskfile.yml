@@ -21,6 +21,12 @@ tasks:
     - |
       ansible-playbook -i inventory site.yml -e '{"pve_reboot_on_kernel_update": true}'
 
+  apply-skip-ssh:
+    desc: Apply Ansible playbook skipping SSH cluster config
+    cmds:
+    - |
+      ansible-playbook -i inventory site.yml -e '{"pve_reboot_on_kernel_update": true}' --skip-tags ssh_cluster_config
+
   default:
     cmds:
     - task --list
