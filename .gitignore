@@ -1,2 +1,5 @@
 inventory
 files/root_pve_rsa
+
+# Environment variables (contains sensitive credentials)
+.envrc

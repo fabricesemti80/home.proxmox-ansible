@@ -163,3 +163,15 @@ pve_ceph_pools:
 #     storage: true
 #     mountpoint: /mnt/pve/cephfs-vm
 #     content: ["images", "rootdir"] # For VM images and container root directories
+
+# ---------------------------------------------------------------------------- #
+#                              Gmail SMTP Configuration                        #
+# ---------------------------------------------------------------------------- #
+# Gmail SMTP settings for Proxmox notifications
+# Credentials are loaded from environment variables via .envrc
+# IMPORTANT: Use Gmail App Password, not your regular password
+# Generate at: https://myaccount.google.com/apppasswords
+gmail_smtp_username: "{{ lookup('env', 'GMAIL_SMTP_USERNAME') }}"
+gmail_smtp_password: "{{ lookup('env', 'GMAIL_SMTP_PASSWORD') }}"
+gmail_smtp_from_name: "Proxmox Cluster {{ pve_group }}"
+proxmox_notification_test: "{{ lookup('env', 'GMAIL_SMTP_TEST') | default('false') | bool }}"

@@ -101,4 +101,11 @@
 #                                Post-deployment                               #
 # ---------------------------------------------------------------------------- #
 
+# -------------------------- Configure Gmail SMTP --------------------------- #
+- hosts: pve01
+  become: True
+  tags: gmail_smtp
+  roles:
+    - proxmox_gmail_smtp
+
 # ----------------------------- Configure backups ---------------------------- #

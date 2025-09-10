@@ -4,6 +4,52 @@ vars:
   TAGS: ""
 
 tasks:
+  check-env:
+    desc: Check if required environment variables are set
+    internal: true
+    cmds:
+      - |
+        missing_vars=""
+        if [ -z "$ANSIBLE_USER" ]; then
+          missing_vars="$missing_vars ANSIBLE_USER"
+        fi
+        if [ -z "$ANSIBLE_PASSWORD" ]; then
+          missing_vars="$missing_vars ANSIBLE_PASSWORD"
+        fi
+        if [ -n "$missing_vars" ]; then
+          echo "Error: Missing required environment variables:$missing_vars"
+          echo ""
+          echo "Please create .envrc file with:"
+          echo "  export ANSIBLE_USER=\"root\""
+          echo "  export ANSIBLE_PASSWORD=\"your-password\""
+          echo ""
+          echo "Then run: direnv allow"
+          echo "See .envrc.example for template."
+          exit 1
+        fi
+
+  check-gmail-env:
+    desc: Check if Gmail environment variables are set
+    internal: true
+    cmds:
+      - |
+        missing_vars=""
+        if [ -z "$GMAIL_SMTP_USERNAME" ]; then
+          missing_vars="$missing_vars GMAIL_SMTP_USERNAME"
+        fi
+        if [ -z "$GMAIL_SMTP_PASSWORD" ]; then
+          missing_vars="$missing_vars GMAIL_SMTP_PASSWORD"
+        fi
+        if [ -n "$missing_vars" ]; then
+          echo "Error: Missing Gmail environment variables:$missing_vars"
+          echo ""
+          echo "Please add to .envrc file:"
+          echo "  export GMAIL_SMTP_USERNAME=\"your-email@gmail.com\""
+          echo "  export GMAIL_SMTP_PASSWORD=\"your-app-password\""
+          echo ""
+          echo "Then run: direnv allow"
+          exit 1
+        fi
   init:
     desc: Install Ansible Galaxy requirements
     cmds:
@@ -11,33 +57,45 @@ tasks:
 
   check:
     desc: Ansible dry run with diff
+    deps: [check-env]
     cmds:
-      - |
-        ansible-playbook -i inventory site.yml -e '{"pve_reboot_on_kernel_update": true}' --check --diff
+      - 'ansible-playbook -i inventory site.yml -e ''{"pve_reboot_on_kernel_update": true}'' --check --diff'
 
   apply:
     desc: Apply Ansible playbook
+    deps: [check-env]
     cmds:
-      - |
-        ansible-playbook -i inventory site.yml -e '{"pve_reboot_on_kernel_update": true}'
+      - 'ansible-playbook -i inventory site.yml -e ''{"pve_reboot_on_kernel_update": true}'''
 
   apply-skip-ssh:
     desc: Apply Ansible playbook skipping SSH cluster config
+    deps: [check-env]
     cmds:
-      - |
-        ansible-playbook -i inventory site.yml -e '{"pve_reboot_on_kernel_update": true}' --skip-tags ssh_cluster_config
+      - 'ansible-playbook -i inventory site.yml -e ''{"pve_reboot_on_kernel_update": true}'' --skip-tags ssh_cluster_config'
 
   add-nodes:
     desc: Add remaining nodes to existing Proxmox cluster
+    deps: [check-env]
     cmds:
-      - |
-        ansible-playbook -i inventory add_remaining_nodes.yml
+      - ansible-playbook -i inventory add_remaining_nodes.yml
 
   configure-network:
     desc: Configure secondary network interfaces (10.0.70.0/24)
+    deps: [check-env]
     cmds:
-      - |
-        ansible-playbook -i inventory configure_secondary_network.yml
+      - ansible-playbook -i inventory configure_secondary_network.yml
+
+  test-gmail:
+    desc: Test Gmail SMTP configuration by sending test emails
+    deps: [check-env, check-gmail-env]
+    cmds:
+      - 'ansible-playbook -i inventory site.yml --tags gmail_smtp -e ''{"proxmox_notification_test": true}'''
+
+  gmail-only:
+    desc: Configure only Gmail SMTP (skip other deployment steps)
+    deps: [check-env, check-gmail-env]
+    cmds:
+      - ansible-playbook -i inventory --tags gmail_smtp site.yml
 
   default:
     cmds:
