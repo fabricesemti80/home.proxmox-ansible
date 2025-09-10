@@ -7,8 +7,30 @@
 # ---------------------------------- Set NTP --------------------------------- #
 - hosts: all
   become: True
-  roles:
-  - geerlingguy.ntp
+  tasks:
+  - name: Configure systemd-timesyncd
+    lineinfile:
+      path: /etc/systemd/timesyncd.conf
+      regexp: '^#?NTP='
+      line: 'NTP=0.uk.pool.ntp.org 1.uk.pool.ntp.org 2.uk.pool.ntp.org 3.uk.pool.ntp.org'
+      backup: yes
+    notify: restart timesyncd
+
+  - name: Set timezone
+    timezone:
+      name: "{{ ntp_timezone }}"
+
+  - name: Enable and start systemd-timesyncd
+    systemd:
+      name: systemd-timesyncd
+      enabled: yes
+      state: started
+
+  handlers:
+  - name: restart timesyncd
+    systemd:
+      name: systemd-timesyncd
+      state: restarted
 
 # ------------------------------ Deploy SSH key ------------------------------ #
 - hosts: pve01
@@ -47,13 +69,13 @@
         delay: 15
     when: _configure_interfaces is changed
 
-# ---------------------------------------------------------------------------- #
-#                                Deploy Proxmox                                #
-# ---------------------------------------------------------------------------- #
-- hosts: pve01
-  become: True
-  roles:
-  - lae.proxmox
+# # ---------------------------------------------------------------------------- #
+# #                                Deploy Proxmox                                #
+# # ---------------------------------------------------------------------------- #
+# - hosts: pve01
+#   become: True
+#   roles:
+#   - lae.proxmox
 
 # ---------------------------------------------------------------------------- #
 #                                Post-deployment                               #

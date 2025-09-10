@@ -1,5 +1,9 @@
 # Notes of my current proxmox setup
 
+## Missing `sudo`
+
+<https://linuxways.net/debian/fix-sudo-command-not-found-debian-12/>
+
 ## Storage folders
 
 ### nfs-proxmox-backup
