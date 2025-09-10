@@ -10,7 +10,8 @@ This project automates the complete setup of a production-ready Proxmox cluster 
 - **Ceph distributed storage** using NVMe drives
 - **Dual network configuration** (management + Ceph networks)
 - **NFS storage integration** for backups, ISOs, and templates
-- **Gmail SMTP notifications** for cluster alerts
+- **Automated backup jobs** for VMs and templates with retention policies
+- **Gmail SMTP notifications** for cluster alerts and backup status
 - **User management** for API automation tools (Packer, Terraform)
 - **SSH key deployment** and security hardening
 
@@ -229,6 +230,7 @@ task apply             # Full cluster deployment
 task apply-skip-ssh    # Deploy without SSH cluster config
 task gmail-only        # Configure Gmail SMTP only
 task test-gmail        # Test Gmail SMTP with email
+task backup-only       # Configure backup jobs only
 task configure-network # Configure secondary network interfaces
 task add-nodes         # Add remaining nodes to existing cluster
 ```
@@ -268,6 +270,32 @@ The deployment creates API users for automation tools:
 
 Both users are in the `api-automation` group with appropriate permissions.
 
+### Backup Configuration
+
+The deployment automatically configures backup jobs:
+
+- **VM Backup:** Runs Sunday 1:00 AM, backs up VMs 1020, 1021
+- **Template Backup:** Runs Sunday 2:00 AM, backs up template 6006
+- **Storage:** Uses NFS share `nfs-proxmox-backup`
+- **Retention:** 7 daily, 4 weekly, 3 monthly backups for VMs
+- **Notifications:** Email alerts on backup completion/failure
+
+To customize backup configuration, edit `group_vars/pve01`:
+
+```yaml
+vm_backup:
+  vm_ids: [1020, 1021, 1030]  # Add/remove VM IDs
+  schedule: "23:00"            # Change time
+  dow: "sat"                   # Change day
+
+template_backup:
+  vm_ids: [6006, 6007]         # Add/remove template IDs
+  schedule: "01:00"            # Change time
+  dow: "sun"                   # Change day
+```
+
+Monitor backups via Proxmox web UI: **Datacenter → Backup**
+
 ## Project Structure
 
 ```
@@ -284,7 +312,8 @@ Both users are in the `api-automation` group with appropriate permissions.
 │   └── root_pve_rsa*       # SSH key pair
 ├── roles/
 │   ├── requirements.yml    # External role dependencies
-│   └── proxmox_gmail_smtp/ # Gmail SMTP configuration role
+│   ├── proxmox_gmail_smtp/ # Gmail SMTP configuration role
+│   └── proxmox_backup/     # Backup job configuration role
 └── hack/
     ├── clean_ceph_services.sh
     └── clean_ceph_volumes.sh

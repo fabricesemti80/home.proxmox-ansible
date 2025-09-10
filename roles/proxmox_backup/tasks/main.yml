@@ -1,0 +1,153 @@
+---
+- name: Ensure backup storage exists
+  uri:
+    url: "https://{{ ansible_host }}:8006/api2/json/storage/{{ backup_storage }}"
+    method: GET
+    headers:
+      Authorization: "PVEAPIToken={{ pve_api_user }}@pam!{{ pve_api_token_name }}={{ pve_api_token_secret }}"
+    validate_certs: false
+    status_code: [200, 500] # 500 if storage doesn't exist
+  register: storage_check
+  delegate_to: localhost
+  run_once: true
+  when: pve_api_user is defined and pve_api_token_name is defined
+
+- name: Verify backup storage exists (fallback check)
+  command: pvesm status -storage {{ backup_storage }}
+  register: storage_status
+  failed_when: storage_status.rc != 0
+  changed_when: false
+  run_once: true
+  when: pve_api_user is not defined or pve_api_token_name is not defined
+
+- name: Create VM backup job
+  uri:
+    url: "https://{{ ansible_host }}:8006/api2/json/cluster/backup"
+    method: POST
+    headers:
+      Authorization: "PVEAPIToken={{ pve_api_user }}@pam!{{ pve_api_token_name }}={{ pve_api_token_secret }}"
+      Content-Type: "application/x-www-form-urlencoded"
+    body_format: form-urlencoded
+    body:
+      id: "{{ vm_backup.name }}"
+      starttime: "{{ vm_backup.schedule }}"
+      dow: "{{ vm_backup.dow }}"
+      vmid: "{{ vm_backup.vm_ids | join(',') }}"
+      storage: "{{ backup_storage }}"
+      compress: "{{ vm_backup.compress }}"
+      mode: "{{ vm_backup.mode }}"
+      enabled: "{{ vm_backup.enabled | int }}"
+      prune-backups: "keep-daily={{ vm_backup.retention.keep_daily }},keep-weekly={{ vm_backup.retention.keep_weekly }},keep-monthly={{ vm_backup.retention.keep_monthly }}"
+      mailnotification: "{{ 'failure' if vm_backup.email_on_failure else ('always' if vm_backup.notification else 'never') }}"
+      mailto: "{{ backup_notification_email | default('') }}"
+      maxfiles: 0 # Use prune-backups instead
+      ionice: "{{ backup_global.ionice }}"
+      lockwait: "{{ backup_global.lockwait }}"
+      bwlimit: "{{ backup_global.bandwidth_limit }}"
+    validate_certs: false
+    status_code: [200, 400] # 400 if job already exists
+  register: vm_backup_result
+  delegate_to: localhost
+  run_once: true
+  when:
+    - vm_backup.enabled
+    - vm_backup.vm_ids | length > 0
+    - pve_api_user is defined and pve_api_token_name is defined
+
+- name: Create template backup job
+  uri:
+    url: "https://{{ ansible_host }}:8006/api2/json/cluster/backup"
+    method: POST
+    headers:
+      Authorization: "PVEAPIToken={{ pve_api_user }}@pam!{{ pve_api_token_name }}={{ pve_api_token_secret }}"
+      Content-Type: "application/x-www-form-urlencoded"
+    body_format: form-urlencoded
+    body:
+      id: "{{ template_backup.name }}"
+      starttime: "{{ template_backup.schedule }}"
+      dow: "{{ template_backup.dow }}"
+      vmid: "{{ template_backup.vm_ids | join(',') }}"
+      storage: "{{ backup_storage }}"
+      compress: "{{ template_backup.compress }}"
+      mode: "{{ template_backup.mode }}"
+      enabled: "{{ template_backup.enabled | int }}"
+      prune-backups: "keep-daily={{ template_backup.retention.keep_daily }},keep-weekly={{ template_backup.retention.keep_weekly }},keep-monthly={{ template_backup.retention.keep_monthly }}"
+      mailnotification: "{{ 'failure' if template_backup.email_on_failure else ('always' if template_backup.notification else 'never') }}"
+      mailto: "{{ backup_notification_email | default('') }}"
+      maxfiles: 0 # Use prune-backups instead
+      ionice: "{{ backup_global.ionice }}"
+      lockwait: "{{ backup_global.lockwait }}"
+      bwlimit: "{{ backup_global.bandwidth_limit }}"
+    validate_certs: false
+    status_code: [200, 400] # 400 if job already exists
+  register: template_backup_result
+  delegate_to: localhost
+  run_once: true
+  when:
+    - template_backup.enabled
+    - template_backup.vm_ids | length > 0
+    - pve_api_user is defined and pve_api_token_name is defined
+
+- name: Create backup jobs using CLI (fallback method)
+  block:
+    - name: Create VM backup job via CLI
+      command: >
+        pvesh create /cluster/backup
+        --id {{ vm_backup.name }}
+        --starttime "{{ vm_backup.schedule }}"
+        --dow {{ vm_backup.dow }}
+        --vmid {{ vm_backup.vm_ids | join(',') }}
+        --storage {{ backup_storage }}
+        --compress {{ vm_backup.compress }}
+        --mode {{ vm_backup.mode }}
+        --enabled {{ vm_backup.enabled | int }}
+        --prune-backups keep-daily={{ vm_backup.retention.keep_daily }},keep-weekly={{ vm_backup.retention.keep_weekly }},keep-monthly={{ vm_backup.retention.keep_monthly }}
+        --mailnotification {{ 'failure' if vm_backup.email_on_failure else ('always' if vm_backup.notification else 'never') }}
+        {% if backup_notification_email is defined %}--mailto {{ backup_notification_email }}{% endif %}
+        --ionice {{ backup_global.ionice }}
+        --lockwait {{ backup_global.lockwait }}
+        {% if backup_global.bandwidth_limit > 0 %}--bwlimit {{ backup_global.bandwidth_limit }}{% endif %}
+      register: vm_backup_cli_result
+      failed_when: vm_backup_cli_result.rc != 0 and 'already exists' not in vm_backup_cli_result.stderr
+      changed_when: vm_backup_cli_result.rc == 0
+      run_once: true
+      when:
+        - vm_backup.enabled
+        - vm_backup.vm_ids | length > 0
+
+    - name: Create template backup job via CLI
+      command: >
+        pvesh create /cluster/backup
+        --id {{ template_backup.name }}
+        --starttime "{{ template_backup.schedule }}"
+        --dow {{ template_backup.dow }}
+        --vmid {{ template_backup.vm_ids | join(',') }}
+        --storage {{ backup_storage }}
+        --compress {{ template_backup.compress }}
+        --mode {{ template_backup.mode }}
+        --enabled {{ template_backup.enabled | int }}
+        --prune-backups keep-daily={{ template_backup.retention.keep_daily }},keep-weekly={{ template_backup.retention.keep_weekly }},keep-monthly={{ template_backup.retention.keep_monthly }}
+        --mailnotification {{ 'failure' if template_backup.email_on_failure else ('always' if template_backup.notification else 'never') }}
+        {% if backup_notification_email is defined %}--mailto {{ backup_notification_email }}{% endif %}
+        --ionice {{ backup_global.ionice }}
+        --lockwait {{ backup_global.lockwait }}
+        {% if backup_global.bandwidth_limit > 0 %}--bwlimit {{ backup_global.bandwidth_limit }}{% endif %}
+      register: template_backup_cli_result
+      failed_when: template_backup_cli_result.rc != 0 and 'already exists' not in template_backup_cli_result.stderr
+      changed_when: template_backup_cli_result.rc == 0
+      run_once: true
+      when:
+        - template_backup.enabled
+        - template_backup.vm_ids | length > 0
+
+  when: pve_api_user is not defined or pve_api_token_name is not defined
+
+- name: Display backup job creation results
+  debug:
+    msg: |
+      Backup jobs configured:
+      - VM Backup ({{ vm_backup.name }}): {{ vm_backup.vm_ids | join(', ') }} - Schedule: {{ vm_backup.dow }} {{ vm_backup.schedule }}
+      - Template Backup ({{ template_backup.name }}): {{ template_backup.vm_ids | join(', ') }} - Schedule: {{ template_backup.dow }} {{ template_backup.schedule }}
+      - Storage: {{ backup_storage }}
+      - Retention: Daily={{ vm_backup.retention.keep_daily }}, Weekly={{ vm_backup.retention.keep_weekly }}, Monthly={{ vm_backup.retention.keep_monthly }}
+  run_once: true

@@ -97,6 +97,12 @@ tasks:
     cmds:
       - ansible-playbook -i inventory --tags gmail_smtp site.yml
 
+  backup-only:
+    desc: Configure only backup jobs (skip other deployment steps)
+    deps: [check-env]
+    cmds:
+      - ansible-playbook -i inventory --tags backup site.yml
+
   default:
     cmds:
       - task --list

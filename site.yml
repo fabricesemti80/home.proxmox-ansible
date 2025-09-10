@@ -109,3 +109,8 @@
     - proxmox_gmail_smtp
 
 # ----------------------------- Configure backups ---------------------------- #
+- hosts: pve01
+  become: True
+  tags: backup
+  roles:
+    - proxmox_backup

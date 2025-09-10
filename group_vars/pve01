@@ -175,3 +175,54 @@ gmail_smtp_username: "{{ lookup('env', 'GMAIL_SMTP_USERNAME') }}"
 gmail_smtp_password: "{{ lookup('env', 'GMAIL_SMTP_PASSWORD') }}"
 gmail_smtp_from_name: "Proxmox Cluster {{ pve_group }}"
 proxmox_notification_test: "{{ lookup('env', 'GMAIL_SMTP_TEST') | default('false') | bool }}"
+
+# ---------------------------------------------------------------------------- #
+#                              Backup Configuration                            #
+# ---------------------------------------------------------------------------- #
+# Automated backup configuration for VMs and templates
+# Backups are stored on NFS share nfs-proxmox-backup
+
+# VM Backup Job - Production VMs
+vm_backup:
+  name: "vm-backup"
+  schedule: "01:00"           # 1:00 AM (24-hour format)
+  dow: "sun"                  # Sunday
+  vm_ids: [1020, 1021]        # VM IDs to backup (changeable)
+  enabled: true
+  compress: "zstd"            # Best compression
+  mode: "snapshot"            # Snapshot mode (no downtime)
+  retention:
+    keep_daily: 7             # Keep daily backups for 1 week
+    keep_weekly: 4            # Keep weekly backups for 1 month
+    keep_monthly: 3           # Keep monthly backups for 3 months
+  notification: true
+  email_on_failure: false     # Send notifications always (not just on failure)
+
+# Template Backup Job - VM Templates
+template_backup:
+  name: "template-backup"
+  schedule: "02:00"           # 2:00 AM (24-hour format)
+  dow: "sun"                  # Sunday (after VM backup)
+  vm_ids: [6006]              # Template IDs to backup (changeable)
+  enabled: true
+  compress: "zstd"
+  mode: "snapshot"
+  retention:
+    keep_daily: 3             # Templates change less frequently
+    keep_weekly: 2
+    keep_monthly: 6           # Keep more monthly backups for templates
+  notification: true
+  email_on_failure: false     # Send notifications always (not just on failure)
+
+# Global backup settings
+backup_global:
+  max_workers: 1              # One backup at a time to avoid I/O contention
+  bandwidth_limit: 0          # No bandwidth limit
+  ionice: 7                   # Lowest I/O priority (don't impact VMs)
+  lockwait: 180               # Wait up to 3 hours for VM lock
+
+# Backup storage (must match storage configuration above)
+backup_storage: "nfs-proxmox-backup"
+
+# Email notifications (uses Gmail SMTP configuration)
+backup_notification_email: "emilfabrice@gmail.com"
