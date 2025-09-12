@@ -109,6 +109,24 @@ tasks:
     cmds:
       - ansible-playbook -i inventory --tags api_tokens site.yml
 
+  pools-only:
+    desc: Create and configure Proxmox resource pools (skip other deployment steps)
+    deps: [check-env]
+    cmds:
+      - ansible-playbook -i inventory --tags pools site.yml
+
+  pools-check:
+    desc: Dry run for Proxmox resource pools configuration
+    deps: [check-env]
+    cmds:
+      - ansible-playbook -i inventory --tags pools site.yml --check --diff
+
+  setup-automation:
+    desc: Setup API tokens and resource pools for automation tools
+    deps: [check-env]
+    cmds:
+      - ansible-playbook -i inventory --tags api_tokens,pools site.yml
+
   default:
     cmds:
       - task --list

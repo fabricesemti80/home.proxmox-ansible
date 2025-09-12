@@ -122,4 +122,9 @@
   roles:
     - proxmox_api_tokens
 
-# ------------------------------ Create API tokens ---------------------------- #
+# ----------------------------- Create resource pools ------------------------- #
+- hosts: pve01
+  become: True
+  tags: pools
+  roles:
+    - proxmox_pools

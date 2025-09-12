@@ -51,10 +51,10 @@ pve_users:
 # Set appropriate ACLs for the API automation group
 pve_acls:
   - path: /
-    roles: ["PVEVMAdmin"] # VM administration role
+    roles: ["PVEVMAdmin", "PVEPoolAdmin"] # VM administration and pool management roles
     groups: ["api-automation"]
   - path: /storage
-    roles: ["PVEDatastoreUser"] # Storage access
+    roles: ["PVEDatastoreAdmin"] # Storage administration for pool management
     groups: ["api-automation"]
 
 # ---------------------------------------------------------------------------- #
@@ -225,3 +225,31 @@ backup_storage: "nfs-proxmox-backup"
 
 # Email notifications (uses Gmail SMTP configuration)
 backup_notification_email: "emilfabrice@gmail.com"
+
+# ---------------------------------------------------------------------------- #
+#                              Resource Pools Configuration                    #
+# ---------------------------------------------------------------------------- #
+# Proxmox resource pools for organizing VMs and resources
+# API credentials for pool management (reuse existing API tokens)
+pve_api_user: "terraform@pve"
+pve_api_token_id: "automation"
+pve_api_token_secret: "{{ lookup('file', 'tokens/terraform@pve-automation.token') | regex_search('TOKEN_SECRET=(.+)', '\\1') | first }}"
+
+# Define resource pools
+pve_pools:
+  - name: "production"
+    comment: "Production VMs and critical services"
+    vms: [1020, 1021] # Add your production VM IDs here
+    storage: ["ceph1", "nfs-proxmox-backup"]
+  - name: "development"
+    comment: "Development and testing environment"
+    vms: [] # Add development VM IDs as needed
+    storage: ["localdir", "ceph1"]
+  - name: "templates"
+    comment: "VM templates and base images"
+    vms: [6006] # Template VM IDs
+    storage: ["nfs-proxmox-template", "nfs-proxmox-iso"]
+  - name: "automation"
+    comment: "Infrastructure automation tools (Packer, Terraform)"
+    vms: [] # VMs created by automation tools
+    storage: ["ceph1", "localdir"]
