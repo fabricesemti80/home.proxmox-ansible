@@ -7,66 +7,66 @@
 - hosts: all
   become: True
   tasks:
-    - name: Configure systemd-timesyncd
-      lineinfile:
-        path: /etc/systemd/timesyncd.conf
-        regexp: "^#?NTP="
-        line: "NTP=0.uk.pool.ntp.org 1.uk.pool.ntp.org 2.uk.pool.ntp.org 3.uk.pool.ntp.org"
-        backup: yes
-      notify: restart timesyncd
+  - name: Configure systemd-timesyncd
+    lineinfile:
+      path: /etc/systemd/timesyncd.conf
+      regexp: "^#?NTP="
+      line: "NTP=0.uk.pool.ntp.org 1.uk.pool.ntp.org 2.uk.pool.ntp.org 3.uk.pool.ntp.org"
+      backup: yes
+    notify: restart timesyncd
 
-    - name: Set timezone
-      timezone:
-        name: "{{ ntp_timezone }}"
+  - name: Set timezone
+    timezone:
+      name: "{{ ntp_timezone }}"
 
-    - name: Enable and start systemd-timesyncd
-      systemd:
-        name: systemd-timesyncd
-        enabled: yes
-        state: started
+  - name: Enable and start systemd-timesyncd
+    systemd:
+      name: systemd-timesyncd
+      enabled: yes
+      state: started
 
   handlers:
-    - name: restart timesyncd
-      systemd:
-        name: systemd-timesyncd
-        state: restarted
+  - name: restart timesyncd
+    systemd:
+      name: systemd-timesyncd
+      state: restarted
 
 # ------------------------------ Deploy SSH key ------------------------------ #
 - hosts: pve01
   become: True
   tasks:
-    - name: Deploy SSH public key to Proxmox server
-      ansible.posix.authorized_key:
-        user: root
-        state: present
-        key: "{{ lookup('file', playbook_dir + '/files/root_pve_rsa.pub') }}"
-        comment: "Ansible automation key"
+  - name: Deploy SSH public key to Proxmox server
+    ansible.posix.authorized_key:
+      user: root
+      state: present
+      key: "{{ lookup('file', playbook_dir + '/files/root_pve_rsa.pub') }}"
+      comment: "Ansible automation key"
 
 # ---------------------- Configure networking [optional] --------------------- #
 - hosts: pve01
   become: True
   serial: 1
   tasks:
-    - name: Install bridge-utils
-      apt:
-        name: bridge-utils
+  - name: Install bridge-utils
+    apt:
+      name: bridge-utils
 
-    - name: Configure /etc/network/interfaces
-      template:
-        src: "{{ interfaces_template }}"
-        dest: /etc/network/interfaces
-      register: _configure_interfaces
+  - name: Configure /etc/network/interfaces
+    template:
+      src: "{{ interfaces_template }}"
+      dest: /etc/network/interfaces
+    register: _configure_interfaces
 
-    - block:
-        - name: Reboot for networking changes
-          shell: "sleep 5 && shutdown -r now 'Networking changes found, rebooting'"
-          async: 1
-          poll: 0
+  - block:
+    - name: Reboot for networking changes
+      shell: "sleep 5 && shutdown -r now 'Networking changes found, rebooting'"
+      async: 1
+      poll: 0
 
-        - name: Wait for server to come back online
-          wait_for_connection:
-            delay: 15
-      when: _configure_interfaces is changed
+    - name: Wait for server to come back online
+      wait_for_connection:
+        delay: 15
+    when: _configure_interfaces is changed
 
 # ---------------------------------------------------------------------------- #
 #                                Deploy Proxmox                                #
@@ -74,30 +74,30 @@
 - hosts: pve01
   become: True
   gather_facts: True
-  pre_tasks:
-    # Set hostname variables that the role expects
-    - name: Set hostname facts for role compatibility
-      set_fact:
-        ansible_hostname_short: "{{ inventory_hostname }}"
-        ansible_fqdn: "{{ inventory_hostname }}.fabricesemti.dev"
-        # Fix SSH cluster addresses to use IP addresses instead of hostnames
-        pve_cluster_ssh_addrs: "{{ groups['pve01'] | map('extract', hostvars, 'ansible_host') | list }}"
+  # pre_tasks: # # Set hostname variables that the role expects
 
-    # Ensure hostname resolution for all cluster nodes
-    - name: Add cluster hostnames to /etc/hosts
-      lineinfile:
-        path: /etc/hosts
-        regexp: "^{{ hostvars[item]['ansible_host'] }}\\s+{{ item }}"
-        line: "{{ hostvars[item]['ansible_host'] }} {{ item }}.fabricesemti.dev {{ item }}"
-        backup: yes
-      loop: "{{ groups['pve01'] }}"
-      when: hostvars[item]['ansible_host'] is defined
+  # - name: Set hostname facts for role compatibility
+  #   set_fact:
+  #     ansible_hostname_short: "{{ inventory_hostname }}"
+  #     ansible_fqdn: "{{ inventory_hostname }}.fabricesemti.dev"
+  #     # Fix SSH cluster addresses to use IP addresses instead of hostnames
+  #     pve_cluster_ssh_addrs: "{{ groups['pve01'] | map('extract', hostvars, 'ansible_host') | list }}"
+
+  # # Ensure hostname resolution for all cluster nodes
+  # - name: Add cluster hostnames to /etc/hosts
+  #   lineinfile:
+  #     path: /etc/hosts
+  #     regexp: "^{{ hostvars[item]['ansible_host'] }}\\s+{{ item }}"
+  #     line: "{{ hostvars[item]['ansible_host'] }} {{ item }}.fabricesemti.dev {{ item }}"
+  #     backup: yes
+  #   loop: "{{ groups['pve01'] }}"
+  #   when: hostvars[item]['ansible_host'] is defined
   vars:
     # Increase timeouts for cluster operations
-    ansible_command_timeout: 600  # 10 minutes
-    ansible_ssh_timeout: 300     # 5 minutes
+    ansible_command_timeout: 600 # 10 minutes
+    ansible_ssh_timeout: 300 # 5 minutes
   roles:
-    - lae.proxmox
+  - lae.proxmox
 # ---------------------------------------------------------------------------- #
 #                                Post-deployment                               #
 # ---------------------------------------------------------------------------- #
@@ -107,25 +107,25 @@
   become: True
   tags: gmail_smtp
   roles:
-    - proxmox_gmail_smtp
+  - proxmox_gmail_smtp
 
 # ----------------------------- Configure backups ---------------------------- #
 - hosts: pve01
   become: True
   tags: backup
   roles:
-    - proxmox_backup
+  - proxmox_backup
 
 # --------------------------- Generate API tokens ---------------------------- #
 - hosts: pve01
   become: True
   tags: api_tokens
   roles:
-    - proxmox_api_tokens
+  - proxmox_api_tokens
 
 # ----------------------------- Create resource pools ------------------------- #
 - hosts: pve01
   become: True
   tags: pools
   roles:
-    - proxmox_pools
+  - proxmox_pools
