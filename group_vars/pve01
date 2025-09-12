@@ -27,35 +27,38 @@ pve_cluster_enabled: yes
 #     groups: [ "ops" ]
 
 # ---------------------------------------------------------------------------- #
-#                        Additional PVE users                                  #
+#                        PVE Users and Permissions                             #
 # ---------------------------------------------------------------------------- #
 
 # Define a group for API automation operations
 pve_groups:
-  - name: api-automation
-    comment: API Automation Tools Group (Packer, Terraform, etc.)
+- name: api-automation
+  comment: API Automation Tools Group (Packer, Terraform, etc.)
 
 # Create the packer user
 pve_users:
-  - name: packer@pve
-    email: automations.fs@gmail.com
-    firstname: Packer
-    lastname: Automation
-    groups: ["api-automation"]
-  - name: terraform@pve
-    email: automations.fs@gmail.com
-    firstname: Terraform
-    lastname: Automation
-    groups: ["api-automation"]
+- name: packer@pve
+  email: automations.fs@gmail.com
+  firstname: Packer
+  lastname: Automation
+  groups: [ "api-automation" ]
+- name: terraform@pve
+  email: automations.fs@gmail.com
+  firstname: Terraform
+  lastname: Automation
+  groups: [ "api-automation" ]
 
 # Set appropriate ACLs for the API automation group
 pve_acls:
-  - path: /
-    roles: ["PVEVMAdmin", "PVEPoolAdmin"] # VM administration and pool management roles
-    groups: ["api-automation"]
-  - path: /storage
-    roles: ["PVEDatastoreAdmin"] # Storage administration for pool management
-    groups: ["api-automation"]
+- path: /
+  roles: [ "PVEVMAdmin", "PVEPoolAdmin" ] # VM administration and pool management roles
+  groups: [ "api-automation" ]
+- path: /storage
+  roles: [ "PVEDatastoreAdmin" ] # Storage administration for pool management
+  groups: [ "api-automation" ]
+- path: /sdn
+  roles: [ "PVESDNAdmin" ] # SDN administration for network management
+  groups: [ "api-automation" ]
 
 # ---------------------------------------------------------------------------- #
 #                                  PVE storage                                 #
@@ -63,56 +66,51 @@ pve_acls:
 # pve_zfs_create_volumes:
 #   - rpool/iso
 pve_storages:
-  # - name: zfsdir
-  #   type: dir
-  #   path: /rpool/zfsdir
-  #   content:
-  #     [
-  #       "snippets", # Snippet files, for example guest hook scripts
-  #       "images", # QEMU/KVM VM images.
-  #       "rootdir" # Allow to store container data.
-  #     ]
-  - name: localdir
-    type: dir
-    content: [
-        "snippets", # Snippet files, for example guest hook scripts
-        "images", # QEMU/KVM VM images.
-        "rootdir", # Allow to store container data.
-      ]
-    path: /plop
-  - name: nfs-proxmox-backup
-    type: nfs
-    server: 10.0.40.2
-    export: /proxmox-backup
-    content: [
-        "backup", # Backup files (vzdump).
-      ]
-    # maxfiles: 4 # only for Backup storage!
-  - name: nfs-proxmox-iso
-    type: nfs
-    server: 10.0.40.2
-    export: /proxmox-iso
-    content: [
-        "iso", # ISO images
-      ]
-  - name: nfs-proxmox-template
-    type: nfs
-    server: 10.0.40.2
-    export: /proxmox-template
-    content: [
-        "vztmpl", # Container templates
-      ]
-  - name: ceph1
-    type: rbd
-    content: ["images", "rootdir"]
-    nodes: "pve-0,pve-1,pve-2" # Comma-separated string
-    # username: admin
-    pool: vm-storage
-    krbd: yes
-    monhost:
-      - 10.0.70.10
-      - 10.0.70.11
-      - 10.0.70.12
+# - name: zfsdir
+#   type: dir
+#   path: /rpool/zfsdir
+#   content:
+#     [
+#       "snippets", # Snippet files, for example guest hook scripts
+#       "images", # QEMU/KVM VM images.
+#       "rootdir" # Allow to store container data.
+#     ]
+- name: localdir
+  type: dir
+  content:
+    [
+      "snippets", # Snippet files, for example guest hook scripts
+      "images", # QEMU/KVM VM images.
+      "rootdir"
+    ] # Allow to store container data.
+  path: /plop
+- name: nfs-proxmox-backup
+  type: nfs
+  server: 10.0.40.2
+  export: /proxmox-backup
+  content: [ "backup" ] # Backup files (vzdump).
+  # maxfiles: 4 # only for Backup storage!
+- name: nfs-proxmox-iso
+  type: nfs
+  server: 10.0.40.2
+  export: /proxmox-iso
+  content: [ "iso" ] # ISO images
+- name: nfs-proxmox-template
+  type: nfs
+  server: 10.0.40.2
+  export: /proxmox-template
+  content: [ "vztmpl" ] # Container templates
+- name: ceph1
+  type: rbd
+  content: [ "images", "rootdir" ]
+  nodes: "pve-0,pve-1,pve-2" # Comma-separated string
+  # username: admin
+  pool: vm-storage
+  krbd: yes
+  monhost:
+  - 10.0.70.10
+  - 10.0.70.11
+  - 10.0.70.12
 
 # ---------------------------------------------------------------------------- #
 #                             PVE networking                                   #
@@ -128,8 +126,8 @@ pve_ceph_network: "10.0.70.0/24"
 pve_ceph_cluster_network: "10.0.70.0/24"
 
 pve_ceph_osds:
-  # OSD with everything on the same device - using NVMe for better performance
-  - device: /dev/nvme0n1
+# OSD with everything on the same device - using NVMe for better performance
+- device: /dev/nvme0n1
 
 # pve_ceph_crush_rules:
 # - name: replicated_rule
@@ -141,20 +139,20 @@ pve_ceph_osds:
 #   failure_domain: osd
 
 pve_ceph_pools:
-  - name: ssd
-    pgs: 32
-    rule: ssd
-    application: rbd
-    storage: true
-    size: 2
-    min-size: 1
+- name: ssd
+  pgs: 32
+  rule: ssd
+  application: rbd
+  storage: true
+  size: 2
+  min-size: 1
 
-  - name: vm-storage
-    pgs: 128
-    rule: replicated_rule
-    application: rbd
-    autoscale_mode: "on"
-    storage: true
+- name: vm-storage
+  pgs: 128
+  rule: replicated_rule
+  application: rbd
+  autoscale_mode: "on"
+  storage: true
 # pve_ceph_fs:
 #   - name: cephfs-vm
 #     pgs: 64
@@ -186,7 +184,7 @@ vm_backup:
   name: "vm-backup"
   schedule: "01:00" # 1:00 AM (24-hour format)
   dow: "sun" # Sunday
-  vm_ids: [1020, 1021] # VM IDs to backup (changeable)
+  vm_ids: [ 1020, 1021 ] # VM IDs to backup (changeable)
   enabled: true
   compress: "zstd" # Best compression
   mode: "snapshot" # Snapshot mode (no downtime)
@@ -202,7 +200,7 @@ template_backup:
   name: "template-backup"
   schedule: "02:00" # 2:00 AM (24-hour format)
   dow: "sun" # Sunday (after VM backup)
-  vm_ids: [6006] # Template IDs to backup (changeable)
+  vm_ids: [ 6006 ] # Template IDs to backup (changeable)
   enabled: true
   compress: "zstd"
   mode: "snapshot"
@@ -237,19 +235,19 @@ pve_api_token_secret: "{{ lookup('file', 'tokens/terraform@pve-automation.token'
 
 # Define resource pools
 pve_pools:
-  - name: "production"
-    comment: "Production VMs and critical services"
-    vms: [1020, 1021] # Add your production VM IDs here
-    storage: ["ceph1", "nfs-proxmox-backup"]
-  - name: "development"
-    comment: "Development and testing environment"
-    vms: [] # Add development VM IDs as needed
-    storage: ["localdir", "ceph1"]
-  - name: "templates"
-    comment: "VM templates and base images"
-    vms: [6006] # Template VM IDs
-    storage: ["nfs-proxmox-template", "nfs-proxmox-iso"]
-  - name: "automation"
-    comment: "Infrastructure automation tools (Packer, Terraform)"
-    vms: [] # VMs created by automation tools
-    storage: ["ceph1", "localdir"]
+- name: "production"
+  comment: "Production VMs and critical services"
+  vms: [ 1020, 1021 ] # Add your production VM IDs here
+  storage: [ "ceph1", "nfs-proxmox-backup" ]
+- name: "development"
+  comment: "Development and testing environment"
+  vms: [] # Add development VM IDs as needed
+  storage: [ "localdir", "ceph1" ]
+- name: "templates"
+  comment: "VM templates and base images"
+  vms: [ 6006 ] # Template VM IDs
+  storage: [ "nfs-proxmox-template", "nfs-proxmox-iso" ]
+- name: "automation"
+  comment: "Infrastructure automation tools (Packer, Terraform)"
+  vms: [] # VMs created by automation tools
+  storage: [ "ceph1", "localdir" ]
