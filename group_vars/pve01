@@ -200,7 +200,7 @@ template_backup:
   name: "template-backup"
   schedule: "02:00" # 2:00 AM (24-hour format)
   dow: "sun" # Sunday (after VM backup)
-  vm_ids: [ 6006 ] # Template IDs to backup (changeable)
+  vm_ids: [ 100, 101 ] # Template IDs to backup (changeable)
   enabled: true
   compress: "zstd"
   mode: "snapshot"
@@ -245,7 +245,7 @@ pve_pools:
   storage: [ "localdir", "ceph1" ]
 - name: "templates"
   comment: "VM templates and base images"
-  vms: [ 6006 ] # Template VM IDs
+  vms: [ 100, 101 ] # Template VM IDs #TODO: might not work!
   storage: [ "nfs-proxmox-template", "nfs-proxmox-iso" ]
 - name: "automation"
   comment: "Infrastructure automation tools (Packer, Terraform)"
