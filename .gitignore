@@ -6,3 +6,4 @@ files/root_pve_rsa
 
 # API tokens (contains sensitive API tokens)
 tokens/
+inventory.backup

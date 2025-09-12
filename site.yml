@@ -73,6 +73,7 @@
 # ---------------------------------------------------------------------------- #
 - hosts: pve01
   become: True
+  gather_facts: True
   pre_tasks:
     # Set hostname variables that the role expects
     - name: Set hostname facts for role compatibility

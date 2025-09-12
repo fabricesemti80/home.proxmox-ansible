@@ -4,6 +4,9 @@ vars:
   TAGS: ""
 
 tasks:
+  # --------------------------------------------------------------------------
+  # Internal/Helper Tasks
+  # --------------------------------------------------------------------------
   check-env:
     desc: Check if required environment variables are set
     internal: true
@@ -50,83 +53,108 @@ tasks:
           echo "Then run: direnv allow"
           exit 1
         fi
-  init:
-    desc: Install Ansible Galaxy requirements
+
+  # --------------------------------------------------------------------------
+  # Setup & Initialization
+  # --------------------------------------------------------------------------
+  setup:
+    desc: Install Ansible Galaxy requirements and prepare environment
+    aliases: [init]
     cmds:
       - ansible-galaxy install -r roles/requirements.yml --force
 
-  check:
-    desc: Ansible dry run with diff
-    deps: [check-env]
-    cmds:
-      - 'ansible-playbook -i inventory site.yml -e ''{"pve_reboot_on_kernel_update": true}'' --check --diff'
-
-  apply:
-    desc: Apply Ansible playbook
+  # --------------------------------------------------------------------------
+  # Main Deployment Tasks
+  # --------------------------------------------------------------------------
+  deploy:
+    desc: Deploy complete Proxmox infrastructure
+    aliases: [apply]
     deps: [check-env]
     cmds:
       - 'ansible-playbook -i inventory site.yml -e ''{"pve_reboot_on_kernel_update": true}'''
 
-  apply-skip-ssh:
-    desc: Apply Ansible playbook skipping SSH cluster config
+  deploy:check:
+    desc: Preview deployment changes (dry run)
+    aliases: [check]
+    deps: [check-env]
+    cmds:
+      - 'ansible-playbook -i inventory site.yml -e ''{"pve_reboot_on_kernel_update": true}'' --check --diff'
+
+  deploy:no-ssh:
+    desc: Deploy infrastructure skipping SSH cluster configuration
     deps: [check-env]
     cmds:
       - 'ansible-playbook -i inventory site.yml -e ''{"pve_reboot_on_kernel_update": true}'' --skip-tags ssh_cluster_config'
 
-  add-nodes:
+  # --------------------------------------------------------------------------
+  # Cluster Management
+  # --------------------------------------------------------------------------
+  cluster:add-nodes:
     desc: Add remaining nodes to existing Proxmox cluster
     deps: [check-env]
     cmds:
       - ansible-playbook -i inventory add_remaining_nodes.yml
 
-  configure-network:
+  cluster:configure-network:
     desc: Configure secondary network interfaces (10.0.70.0/24)
     deps: [check-env]
     cmds:
       - ansible-playbook -i inventory configure_secondary_network.yml
 
-  test-gmail:
+  # --------------------------------------------------------------------------
+  # Notifications & SMTP
+  # --------------------------------------------------------------------------
+  smtp:configure:
+    desc: Configure Gmail SMTP for notifications
+    deps: [check-env, check-gmail-env]
+    cmds:
+      - ansible-playbook -i inventory --tags gmail_smtp site.yml
+
+  smtp:test:
     desc: Test Gmail SMTP configuration by sending test emails
     deps: [check-env, check-gmail-env]
     cmds:
       - 'ansible-playbook -i inventory site.yml --tags gmail_smtp -e ''{"proxmox_notification_test": true}'''
 
-  gmail-only:
-    desc: Configure only Gmail SMTP (skip other deployment steps)
-    deps: [check-env, check-gmail-env]
-    cmds:
-      - ansible-playbook -i inventory --tags gmail_smtp site.yml
-
-  backup-only:
-    desc: Configure only backup jobs (skip other deployment steps)
+  # --------------------------------------------------------------------------
+  # Backup Management
+  # --------------------------------------------------------------------------
+  backup:configure:
+    desc: Configure automated backup jobs
     deps: [check-env]
     cmds:
       - ansible-playbook -i inventory --tags backup site.yml
 
-  tokens-only:
-    desc: Generate API tokens for Packer and Terraform (skip other deployment steps)
+  # --------------------------------------------------------------------------
+  # API & Automation
+  # --------------------------------------------------------------------------
+  api:tokens:
+    desc: Generate API tokens for Packer and Terraform
     deps: [check-env]
     cmds:
       - ansible-playbook -i inventory --tags api_tokens site.yml
 
-  pools-only:
-    desc: Create and configure Proxmox resource pools (skip other deployment steps)
+  api:pools:
+    desc: Create and configure Proxmox resource pools
     deps: [check-env]
     cmds:
       - ansible-playbook -i inventory --tags pools site.yml
 
-  pools-check:
-    desc: Dry run for Proxmox resource pools configuration
+  api:pools:check:
+    desc: Preview resource pool changes (dry run)
     deps: [check-env]
     cmds:
       - ansible-playbook -i inventory --tags pools site.yml --check --diff
 
-  setup-automation:
-    desc: Setup API tokens and resource pools for automation tools
+  api:setup:
+    desc: Setup complete API automation (tokens + pools)
     deps: [check-env]
     cmds:
       - ansible-playbook -i inventory --tags api_tokens,pools site.yml
 
+  # --------------------------------------------------------------------------
+  # Utility Tasks
+  # --------------------------------------------------------------------------
   default:
     cmds:
       - task --list
