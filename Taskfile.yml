@@ -11,150 +11,157 @@ tasks:
     desc: Check if required environment variables are set
     internal: true
     cmds:
-      - |
-        missing_vars=""
-        if [ -z "$ANSIBLE_USER" ]; then
-          missing_vars="$missing_vars ANSIBLE_USER"
-        fi
-        if [ -z "$ANSIBLE_PASSWORD" ]; then
-          missing_vars="$missing_vars ANSIBLE_PASSWORD"
-        fi
-        if [ -n "$missing_vars" ]; then
-          echo "Error: Missing required environment variables:$missing_vars"
-          echo ""
-          echo "Please create .envrc file with:"
-          echo "  export ANSIBLE_USER=\"root\""
-          echo "  export ANSIBLE_PASSWORD=\"your-password\""
-          echo ""
-          echo "Then run: direnv allow"
-          echo "See .envrc.example for template."
-          exit 1
-        fi
+    - |
+      missing_vars=""
+      if [ -z "$ANSIBLE_USER" ]; then
+        missing_vars="$missing_vars ANSIBLE_USER"
+      fi
+      if [ -z "$ANSIBLE_PASSWORD" ]; then
+        missing_vars="$missing_vars ANSIBLE_PASSWORD"
+      fi
+      if [ -n "$missing_vars" ]; then
+        echo "Error: Missing required environment variables:$missing_vars"
+        echo ""
+        echo "Please create .envrc file with:"
+        echo "  export ANSIBLE_USER=\"root\""
+        echo "  export ANSIBLE_PASSWORD=\"your-password\""
+        echo ""
+        echo "Then run: direnv allow"
+        echo "See .envrc.example for template."
+        exit 1
+      fi
 
   check-gmail-env:
     desc: Check if Gmail environment variables are set
     internal: true
     cmds:
-      - |
-        missing_vars=""
-        if [ -z "$GMAIL_SMTP_USERNAME" ]; then
-          missing_vars="$missing_vars GMAIL_SMTP_USERNAME"
-        fi
-        if [ -z "$GMAIL_SMTP_PASSWORD" ]; then
-          missing_vars="$missing_vars GMAIL_SMTP_PASSWORD"
-        fi
-        if [ -n "$missing_vars" ]; then
-          echo "Error: Missing Gmail environment variables:$missing_vars"
-          echo ""
-          echo "Please add to .envrc file:"
-          echo "  export GMAIL_SMTP_USERNAME=\"your-email@gmail.com\""
-          echo "  export GMAIL_SMTP_PASSWORD=\"your-app-password\""
-          echo ""
-          echo "Then run: direnv allow"
-          exit 1
-        fi
+    - |
+      missing_vars=""
+      if [ -z "$GMAIL_SMTP_USERNAME" ]; then
+        missing_vars="$missing_vars GMAIL_SMTP_USERNAME"
+      fi
+      if [ -z "$GMAIL_SMTP_PASSWORD" ]; then
+        missing_vars="$missing_vars GMAIL_SMTP_PASSWORD"
+      fi
+      if [ -n "$missing_vars" ]; then
+        echo "Error: Missing Gmail environment variables:$missing_vars"
+        echo ""
+        echo "Please add to .envrc file:"
+        echo "  export GMAIL_SMTP_USERNAME=\"your-email@gmail.com\""
+        echo "  export GMAIL_SMTP_PASSWORD=\"your-app-password\""
+        echo ""
+        echo "Then run: direnv allow"
+        exit 1
+      fi
 
   # --------------------------------------------------------------------------
   # Setup & Initialization
   # --------------------------------------------------------------------------
   setup:
     desc: Install Ansible Galaxy requirements and prepare environment
-    aliases: [init]
+    aliases: [ init ]
     cmds:
-      - ansible-galaxy install -r roles/requirements.yml --force
+    - ansible-galaxy install -r roles/requirements.yml --force
 
   # --------------------------------------------------------------------------
   # Main Deployment Tasks
   # --------------------------------------------------------------------------
   deploy:
     desc: Deploy complete Proxmox infrastructure
-    aliases: [apply]
-    deps: [check-env]
+    aliases: [ apply ]
+    deps: [ check-env ]
     cmds:
-      - 'ansible-playbook -i inventory site.yml -e ''{"pve_reboot_on_kernel_update": true}'''
+    - 'ansible-playbook -i inventory site.yml -e ''{"pve_reboot_on_kernel_update": true}'''
+
+  deploy:verbose:
+    desc: Deploy complete Proxmox infrastructure
+    aliases: [ apply ]
+    deps: [ check-env ]
+    cmds:
+    - 'ansible-playbook -i inventory site.yml -e ''{"pve_reboot_on_kernel_update": true}'' -vv'
 
   deploy:check:
     desc: Preview deployment changes (dry run)
-    aliases: [check]
-    deps: [check-env]
+    aliases: [ check ]
+    deps: [ check-env ]
     cmds:
-      - 'ansible-playbook -i inventory site.yml -e ''{"pve_reboot_on_kernel_update": true}'' --check --diff'
+    - 'ansible-playbook -i inventory site.yml -e ''{"pve_reboot_on_kernel_update": true}'' --check --diff'
 
   deploy:no-ssh:
     desc: Deploy infrastructure skipping SSH cluster configuration
-    deps: [check-env]
+    deps: [ check-env ]
     cmds:
-      - 'ansible-playbook -i inventory site.yml -e ''{"pve_reboot_on_kernel_update": true}'' --skip-tags ssh_cluster_config'
+    - 'ansible-playbook -i inventory site.yml -e ''{"pve_reboot_on_kernel_update": true}'' --skip-tags ssh_cluster_config'
 
   # --------------------------------------------------------------------------
   # Cluster Management
   # --------------------------------------------------------------------------
   cluster:add-nodes:
     desc: Add remaining nodes to existing Proxmox cluster
-    deps: [check-env]
+    deps: [ check-env ]
     cmds:
-      - ansible-playbook -i inventory add_remaining_nodes.yml
+    - ansible-playbook -i inventory add_remaining_nodes.yml
 
   cluster:configure-network:
     desc: Configure secondary network interfaces (10.0.70.0/24)
-    deps: [check-env]
+    deps: [ check-env ]
     cmds:
-      - ansible-playbook -i inventory configure_secondary_network.yml
+    - ansible-playbook -i inventory configure_secondary_network.yml
 
   # --------------------------------------------------------------------------
   # Notifications & SMTP
   # --------------------------------------------------------------------------
   smtp:configure:
     desc: Configure Gmail SMTP for notifications
-    deps: [check-env, check-gmail-env]
+    deps: [ check-env, check-gmail-env ]
     cmds:
-      - ansible-playbook -i inventory --tags gmail_smtp site.yml
+    - ansible-playbook -i inventory --tags gmail_smtp site.yml
 
   smtp:test:
     desc: Test Gmail SMTP configuration by sending test emails
-    deps: [check-env, check-gmail-env]
+    deps: [ check-env, check-gmail-env ]
     cmds:
-      - 'ansible-playbook -i inventory site.yml --tags gmail_smtp -e ''{"proxmox_notification_test": true}'''
+    - 'ansible-playbook -i inventory site.yml --tags gmail_smtp -e ''{"proxmox_notification_test": true}'''
 
   # --------------------------------------------------------------------------
   # Backup Management
   # --------------------------------------------------------------------------
   backup:configure:
     desc: Configure automated backup jobs
-    deps: [check-env]
+    deps: [ check-env ]
     cmds:
-      - ansible-playbook -i inventory --tags backup site.yml
+    - ansible-playbook -i inventory --tags backup site.yml
 
   # --------------------------------------------------------------------------
   # API & Automation
   # --------------------------------------------------------------------------
   api:tokens:
     desc: Generate API tokens for Packer and Terraform
-    deps: [check-env]
+    deps: [ check-env ]
     cmds:
-      - ansible-playbook -i inventory --tags api_tokens site.yml
+    - ansible-playbook -i inventory --tags api_tokens site.yml
 
   api:pools:
     desc: Create and configure Proxmox resource pools
-    deps: [check-env]
+    deps: [ check-env ]
     cmds:
-      - ansible-playbook -i inventory --tags pools site.yml
+    - ansible-playbook -i inventory --tags pools site.yml
 
   api:pools:check:
     desc: Preview resource pool changes (dry run)
-    deps: [check-env]
+    deps: [ check-env ]
     cmds:
-      - ansible-playbook -i inventory --tags pools site.yml --check --diff
+    - ansible-playbook -i inventory --tags pools site.yml --check --diff
 
   api:setup:
     desc: Setup complete API automation (tokens + pools)
-    deps: [check-env]
+    deps: [ check-env ]
     cmds:
-      - ansible-playbook -i inventory --tags api_tokens,pools site.yml
+    - ansible-playbook -i inventory --tags api_tokens,pools site.yml
 
   # --------------------------------------------------------------------------
   # Utility Tasks
   # --------------------------------------------------------------------------
   default:
     cmds:
-      - task --list
+    - task --list
