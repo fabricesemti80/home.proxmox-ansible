@@ -66,15 +66,9 @@ pve_acls:
 # pve_zfs_create_volumes:
 #   - rpool/iso
 pve_storages:
-# - name: zfsdir
-#   type: dir
-#   path: /rpool/zfsdir
-#   content:
-#     [
-#       "snippets", # Snippet files, for example guest hook scripts
-#       "images", # QEMU/KVM VM images.
-#       "rootdir" # Allow to store container data.
-#     ]
+
+# ------------------------------ Default storage ----------------------------- #
+
 - name: localdir
   type: dir
   content:
@@ -84,22 +78,32 @@ pve_storages:
       "rootdir"
     ] # Allow to store container data.
   path: /plop
+
+# ------------------------------- NFS Backup storage ------------------------------- #
 - name: nfs-proxmox-backup
   type: nfs
   server: 10.0.40.2
   export: /proxmox-backup
   content: [ "backup" ] # Backup files (vzdump).
   # maxfiles: 4 # only for Backup storage!
+
+  # ------------------------------- NFS ISO storage ------------------------------- #
 - name: nfs-proxmox-iso
   type: nfs
   server: 10.0.40.2
   export: /proxmox-iso
   content: [ "iso" ] # ISO images
+
+# ------------------------------ NFS Template storage ------------------------------ #
 - name: nfs-proxmox-template
   type: nfs
+  # content: [ "vztmpl" ] - Container templates
+  #          [ "images" ] - QEMU/KVM VM images
   server: 10.0.40.2
   export: /proxmox-template
-  content: [ "vztmpl" ] # Container templates
+  content: [ "vztmpl", "images" ] # Container templates and VM templates
+
+# --------------------------------- CEPH RBD --------------------------------- #
 - name: ceph1
   type: rbd
   content: [ "images", "rootdir" ]
