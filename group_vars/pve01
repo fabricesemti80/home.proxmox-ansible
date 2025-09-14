@@ -106,8 +106,8 @@ pve_storages:
 # --------------------------------- CEPH RBD --------------------------------- #
 - name: ceph1
   type: rbd
-  content: [ "images", "rootdir" ]
-  nodes: "pve-0,pve-1,pve-2" # Comma-separated string
+  content: [ "images", "rootdir" ] # VM images and container root directories
+  nodes: "pve-0,pve-1,pve-2"
   # username: admin
   pool: vm-storage
   krbd: yes
