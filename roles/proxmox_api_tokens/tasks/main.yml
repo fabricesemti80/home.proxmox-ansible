@@ -24,13 +24,13 @@
       --comment "{{ item.item.comment }}" \
       --expire {{ item.item.expire }} \
       --privsep {{ item.item.privsep }} 2>&1)
-    
+
     # Extract the token secret from the output
     # The secret is typically shown in the creation output
     echo "$OUTPUT" | grep -o '[a-f0-9]\{8\}-[a-f0-9]\{4\}-[a-f0-9]\{4\}-[a-f0-9]\{4\}-[a-f0-9]\{12\}' || echo "TOKEN_SECRET_NOT_FOUND"
   register: token_create_result
   loop: "{{ token_exists_check.results }}"
-  when: item.rc != 0  # Token doesn't exist
+  when: item.rc != 0 # Token doesn't exist
   failed_when: token_create_result.rc != 0 and 'already exists' not in token_create_result.stderr
   changed_when: token_create_result.rc == 0
   run_once: true
@@ -42,7 +42,7 @@
       # Generated: {{ ansible_date_time.iso8601 }}
       # Token ID: {{ item.item.item.user }}!{{ item.item.item.token_name }}
       # Proxmox URL: https://{{ hostvars[groups['pve01'][0]]['ansible_host'] }}:8006/api2/json
-      
+
       TOKEN_SECRET={{ item.stdout | trim }}
       TOKEN_ID={{ item.item.item.user }}!{{ item.item.item.token_name }}
       PROXMOX_URL=https://{{ hostvars[groups['pve01'][0]]['ansible_host'] }}:8006/api2/json
