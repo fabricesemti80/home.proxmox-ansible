@@ -116,7 +116,7 @@ pve_storages:
   type: nfs
   server: 10.0.40.2
   export: /proxmox-iso
-  content: [ "iso" ] # ISO images
+  content: [ "iso", "import" ] # ISO images and imported files (cloud images, etc.)
 
 # ------------------------------ NFS Template storage ------------------------------ #
 - name: nfs-proxmox-template
