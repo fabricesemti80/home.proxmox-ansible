@@ -92,7 +92,10 @@ pve_acls:
 pve_storages:
 
 # ------------------------------ Default storage ----------------------------- #
-
+#? Local Directory Storage - Local filesystem-based storage
+#? Characteristics: Simple, direct filesystem access, no network overhead
+#? Use case: Local VM/container storage, when you need direct filesystem access
+#? All possible contents: snippets, images, rootdir, vztmpl, iso, backup, productimg, container, vm
 - name: localdir
   type: dir
   content:
@@ -104,33 +107,64 @@ pve_storages:
   path: /plop
 
 # ------------------------------- NFS Backup storage ------------------------------- #
+#? NFS Backup Storage - Network-based backup storage
+#? Characteristics: Network filesystem, shared across cluster, dedicated for backups
+#? Use case: VM and template backup storage, centralized backup management
+#? All possible contents: snippets, images, rootdir, vztmpl, iso, backup, productimg, container, vm
 - name: nfs-proxmox-backup
   type: nfs
   server: 10.0.40.2
   export: /proxmox-backup
-  content: [ "backup" ] # Backup files (vzdump).
+  content:
+    [
+      "backup"
+    ] # Backup files (vzdump).
   # maxfiles: 4 # only for Backup storage!
 
   # ------------------------------- NFS ISO storage ------------------------------- #
+#? NFS ISO Storage - Network-based ISO image storage
+#? Characteristics: Network filesystem, shared across cluster, optimized for ISO files
+#? Use case: ISO images and imported cloud images, shared access across cluster
+#? All possible contents: snippets, images, rootdir, vztmpl, iso, backup, productimg, container, vm
 - name: nfs-proxmox-iso
   type: nfs
   server: 10.0.40.2
   export: /proxmox-iso
-  content: [ "iso", "import" ] # ISO images and imported files (cloud images, etc.)
+  content:
+    [
+      "iso",
+      "import"
+    ] # ISO images and imported files (cloud images, etc.)
 
 # ------------------------------ NFS Template storage ------------------------------ #
+#? NFS Template Storage - Network-based template storage
+#? Characteristics: Network filesystem, shared across cluster, for templates and images
+#? Use case: VM templates and base images, shared template library
+#? All possible contents: snippets, images, rootdir, vztmpl, iso, backup, productimg, container, vm
 - name: nfs-proxmox-template
   type: nfs
   # content: [ "vztmpl" ] - Container templates
   #          [ "images" ] - QEMU/KVM VM images
   server: 10.0.40.2
   export: /proxmox-template
-  content: [ "vztmpl", "images" ] # Container templates and VM templates
+  content:
+    [
+      "vztmpl",
+      "images"
+    ] # Container templates and VM templates
 
 # --------------------------------- CEPH RBD --------------------------------- #
+#? Ceph RBD (RADOS Block Device) - Block-level storage for VMs and containers
+#? Characteristics: Low latency, high performance, appears as block device
+#? Use case: Primary VM storage, container root filesystems, when you need best I/O performance
+#? All possible contents: images, rootdir, container, vm
 - name: ceph1
   type: rbd
-  content: [ "images", "rootdir" ] # VM images and container root directories
+  content:
+    [
+      "images",
+      "rootdir"
+    ] # VM images and container root directories
   nodes: "pve-0,pve-1,pve-2"
   # username: admin
   pool: vm-storage
@@ -181,13 +215,23 @@ pve_ceph_pools:
   application: rbd
   autoscale_mode: "on"
   storage: true
-# pve_ceph_fs:
-#   - name: cephfs-vm
-#     pgs: 64
-#     rule: replicated_rule
-#     storage: true
-#     mountpoint: /mnt/pve/cephfs-vm
-#     content: ["images", "rootdir"] # For VM images and container root directories
+
+pve_ceph_fs:
+  #? CephFS (Ceph File System) - File-level distributed storage
+  #? Characteristics: POSIX file system interface, supports all content types including snippets
+  #? Use case: When you need snippet support, file-based operations, or direct filesystem access
+  #? All possible contents: images, rootdir, snippets, vztmpl, iso, backup, productimg, container, vm
+  - name: cephfs-vm
+    pgs: 64
+    rule: replicated_rule
+    storage: true
+    mountpoint: /mnt/pve/cephfs-vm
+    content:
+      [
+        "images",
+        "rootdir",
+        "snippets"
+      ] # For VM images and container root directories
 
 # ---------------------------------------------------------------------------- #
 #                              Gmail SMTP Configuration                        #
