@@ -75,7 +75,7 @@ pve_roles:
 # Set appropriate ACLs for the API automation group
 pve_acls:
 - path: /
-  roles: [ "PVEVMAdmin", "PVEPoolAdmin", "TerraformProv" ] # VM administration and pool management roles
+  roles: [ "PVEVMAdmin", "PVEPoolAdmin" ] # VM administration and pool management roles
   groups: [ "api-automation" ]
 - path: /storage
   roles: [ "PVEDatastoreAdmin" ] # Storage administration for pool management
@@ -92,10 +92,7 @@ pve_acls:
 pve_storages:
 
 # ------------------------------ Default storage ----------------------------- #
-#? Local Directory Storage - Local filesystem-based storage
-#? Characteristics: Simple, direct filesystem access, no network overhead
-#? Use case: Local VM/container storage, when you need direct filesystem access
-#? All possible contents: snippets, images, rootdir, vztmpl, iso, backup, productimg, container, vm
+#? All possible contents: snippets, images, rootdir, vztmpl, iso, backup
 - name: localdir
   type: dir
   content:
@@ -110,7 +107,7 @@ pve_storages:
 #? NFS Backup Storage - Network-based backup storage
 #? Characteristics: Network filesystem, shared across cluster, dedicated for backups
 #? Use case: VM and template backup storage, centralized backup management
-#? All possible contents: snippets, images, rootdir, vztmpl, iso, backup, productimg, container, vm
+#? All possible contents: snippets, images, rootdir, vztmpl, iso, backup
 - name: nfs-proxmox-backup
   type: nfs
   server: 10.0.40.2
@@ -125,7 +122,7 @@ pve_storages:
 #? NFS ISO Storage - Network-based ISO image storage
 #? Characteristics: Network filesystem, shared across cluster, optimized for ISO files
 #? Use case: ISO images and imported cloud images, shared access across cluster
-#? All possible contents: snippets, images, rootdir, vztmpl, iso, backup, productimg, container, vm
+#? All possible contents: snippets, images, rootdir, vztmpl, iso, backup
 - name: nfs-proxmox-iso
   type: nfs
   server: 10.0.40.2
@@ -140,7 +137,7 @@ pve_storages:
 #? NFS Template Storage - Network-based template storage
 #? Characteristics: Network filesystem, shared across cluster, for templates and images
 #? Use case: VM templates and base images, shared template library
-#? All possible contents: snippets, images, rootdir, vztmpl, iso, backup, productimg, container, vm
+#? All possible contents: snippets, images, rootdir, vztmpl, iso, backup
 - name: nfs-proxmox-template
   type: nfs
   # content: [ "vztmpl" ] - Container templates
@@ -157,7 +154,7 @@ pve_storages:
 #? Ceph RBD (RADOS Block Device) - Block-level storage for VMs and containers
 #? Characteristics: Low latency, high performance, appears as block device
 #? Use case: Primary VM storage, container root filesystems, when you need best I/O performance
-#? All possible contents: images, rootdir, container, vm
+#? All possible contents: images, rootdir
 - name: ceph1
   type: rbd
   content:
@@ -165,6 +162,7 @@ pve_storages:
       "images",
       "rootdir"
     ] # VM images and container root directories
+
   nodes: "pve-0,pve-1,pve-2"
   # username: admin
   pool: vm-storage
@@ -173,6 +171,20 @@ pve_storages:
   - 10.0.70.10
   - 10.0.70.11
   - 10.0.70.12
+
+# --------------------------------- CEPH FS ---------------------------------- #
+#? CephFS (Ceph File System) - File-level distributed storage for snippets, etc.
+#? All possible contents: snippets, backup, iso, vztmpl
+- name: cephfs-vm
+  type: cephfs
+  content:
+    [
+      "snippets"
+    ]
+  fs-name: cephfs-vm
+  monhost: 10.0.70.10,10.0.70.11,10.0.70.12
+  path: /mnt/pve/cephfs-vm
+  nodes: "pve-0,pve-1,pve-2"
 
 # ---------------------------------------------------------------------------- #
 #                             PVE networking                                   #
@@ -217,21 +229,24 @@ pve_ceph_pools:
   storage: true
 
 pve_ceph_fs:
+  #? NOTE: This variable configures the underlying Ceph filesystem.
+  #? The actual content types accepted by Proxmox for this storage
+  #? are defined in the 'pve_storages' section.
   #? CephFS (Ceph File System) - File-level distributed storage
-  #? Characteristics: POSIX file system interface, supports all content types including snippets
+  #? Characteristics: POSIX file system interface, supports file-based content
   #? Use case: When you need snippet support, file-based operations, or direct filesystem access
-  #? All possible contents: images, rootdir, snippets, vztmpl, iso, backup, productimg, container, vm
+  #? All possible contents for Proxmox storage via lae.proxmox: snippets, backup, iso, vztmpl
   - name: cephfs-vm
     pgs: 64
     rule: replicated_rule
     storage: true
     mountpoint: /mnt/pve/cephfs-vm
-    content:
-      [
-        "images",
-        "rootdir",
-        "snippets"
-      ] # For VM images and container root directories
+    # content:
+    #   [
+    #     "images",
+    #     "rootdir",
+    #     "snippets"
+    #   ] # For VM images and container root directories
 
 # ---------------------------------------------------------------------------- #
 #                              Gmail SMTP Configuration                        #

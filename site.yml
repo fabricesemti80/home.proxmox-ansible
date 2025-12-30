@@ -96,6 +96,30 @@
     # Increase timeouts for cluster operations
     ansible_command_timeout: 600 # 10 minutes
     ansible_ssh_timeout: 300 # 5 minutes
+  pre_tasks:
+    - name: Create Ceph lib directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: ceph
+        group: ceph
+        mode: 0755
+        recurse: yes
+      loop:
+        - /var/lib/ceph/mon
+        - /var/lib/ceph/mgr
+        - /var/lib/ceph/mds
+        - /var/lib/ceph/osd
+        - /var/lib/ceph/bootstrap-osd
+
+    - name: Create Ceph config directory
+      file:
+        path: /etc/ceph
+        state: directory
+        owner: ceph
+        group: ceph
+        mode: 0755
+        recurse: no
   roles:
   - lae.proxmox
 # ---------------------------------------------------------------------------- #
