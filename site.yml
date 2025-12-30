@@ -57,28 +57,9 @@
 - hosts: pve01
   become: True
   gather_facts: True
-  # pre_tasks: # # Set hostname variables that the role expects
-
-  # - name: Set hostname facts for role compatibility
-  #   set_fact:
-  #     ansible_hostname_short: "{{ inventory_hostname }}"
-  #     ansible_fqdn: "{{ inventory_hostname }}.fabricesemti.dev"
-  #     # Fix SSH cluster addresses to use IP addresses instead of hostnames
-  #     pve_cluster_ssh_addrs: "{{ groups['pve01'] | map('extract', hostvars, 'ansible_host') | list }}"
-
-  # # Ensure hostname resolution for all cluster nodes
-  # - name: Add cluster hostnames to /etc/hosts
-  #   lineinfile:
-  #     path: /etc/hosts
-  #     regexp: "^{{ hostvars[item]['ansible_host'] }}\\s+{{ item }}"
-  #     line: "{{ hostvars[item]['ansible_host'] }} {{ item }}.fabricesemti.dev {{ item }}"
-  #     backup: yes
-  #   loop: "{{ groups['pve01'] }}"
-  #   when: hostvars[item]['ansible_host'] is defined
   vars:
-    # Increase timeouts for cluster operations
-    ansible_command_timeout: 600 # 10 minutes
-    ansible_ssh_timeout: 300 # 5 minutes
+    ansible_command_timeout: 600
+    ansible_ssh_timeout: 300
   pre_tasks:
     - name: Create Ceph lib directories
       file:
@@ -105,6 +86,32 @@
         recurse: no
   roles:
   - lae.proxmox
+
+  post_tasks:
+    - name: Ensure Ceph Manager is created
+      command: "pveceph mgr create"
+      register: _mgr_create
+      failed_when: false
+      changed_when: "'already exists' not in _mgr_create.stderr"
+
+    - name: Ensure Ceph MDS is created
+      command: "pveceph mds create"
+      register: _mds_create
+      failed_when: false
+      changed_when: "'already exists' not in _mds_create.stderr"
+
+    - name: Ensure Ceph Manager service is started and enabled
+      systemd:
+        name: "ceph-mgr@{{ inventory_hostname_short }}"
+        state: started
+        enabled: yes
+
+    - name: Ensure Ceph MDS service is started and enabled
+      systemd:
+        name: "ceph-mds@{{ inventory_hostname_short }}"
+        state: started
+        enabled: yes
+
 # ---------------------------------------------------------------------------- #
 #                                Post-deployment                               #
 # ---------------------------------------------------------------------------- #
