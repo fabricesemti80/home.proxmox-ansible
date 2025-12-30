@@ -1,9 +1,8 @@
-# Use systemd-timesyncd for Debian 13 compatibility
-ntp_daemon: systemd-timesyncd
+ntp_daemon: chrony
 ntp_manage_config: true
 ntp_servers:
-  - 0.uk.pool.ntp.org iburst
-  - 1.uk.pool.ntp.org iburst
-  - 2.uk.pool.ntp.org iburst
-  - 3.uk.pool.ntp.org iburst
+  - 0.uk.pool.ntp.org
+  - 1.uk.pool.ntp.org
+  - 2.uk.pool.ntp.org
+  - 3.uk.pool.ntp.org
 ntp_timezone: Europe/London
