@@ -182,6 +182,7 @@ pve_storages:
       "snippets"
     ]
   fs-name: cephfs-vm
+  username: admin
   monhost: 10.0.70.10,10.0.70.11,10.0.70.12
   path: /mnt/pve/cephfs-vm
   nodes: "pve-0,pve-1,pve-2"
@@ -240,7 +241,6 @@ pve_ceph_fs:
     pgs: 64
     rule: replicated_rule
     storage: true
-    mountpoint: /mnt/pve/cephfs-vm
     # content:
     #   [
     #     "images",

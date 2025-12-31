@@ -29,6 +29,7 @@
 - hosts: pve01
   become: True
   serial: 1
+  tags: [networking, bridge]
   tasks:
   - name: Install bridge-utils
     apt:
@@ -48,7 +49,17 @@
 
     - name: Wait for server to come back online
       wait_for_connection:
-        delay: 15
+        delay: 30
+        timeout: 300
+      when: _configure_interfaces is changed
+
+    - name: Wait for Ceph to stabilize
+      command: ceph health
+      register: _ceph_health
+      until: "'HEALTH_OK' in _ceph_health.stdout or 'HEALTH_WARN' in _ceph_health.stdout"
+      retries: 20
+      delay: 10
+      check_mode: no
     when: _configure_interfaces is changed
 
 # ---------------------------------------------------------------------------- #
@@ -61,6 +72,15 @@
     ansible_command_timeout: 600
     ansible_ssh_timeout: 300
   pre_tasks:
+    - name: Ensure CephFS-VM keyring exists (link to admin)
+      ansible.builtin.copy:
+        remote_src: yes
+        src: /etc/pve/priv/ceph.client.admin.keyring
+        dest: /etc/pve/priv/ceph.client.cephfs-vm.keyring
+        owner: root
+        group: root
+        mode: '0600'
+      failed_when: false
     - name: Create Ceph lib directories
       file:
         path: "{{ item }}"

@@ -15,27 +15,33 @@ iface lo inet loopback
 
 iface enp2s0 inet manual
 
-# USB Network Configuration - Host-specific configuration
+# USB Network Physical Interfaces (Ceph & VM Storage)
 {% if inventory_hostname == 'pve-0.fabricesemti.dev' %}
-auto enx7cc2c64ca36f
-iface enx7cc2c64ca36f inet static
-    address 10.0.70.10/24
+iface enx7cc2c64ca36f inet manual
 {% elif inventory_hostname == 'pve-1.fabricesemti.dev' %}
-auto enx7cc2c64b6389
-iface enx7cc2c64b6389 inet static
-    address 10.0.70.11/24
+iface enx7cc2c64b6389 inet manual
 {% elif inventory_hostname == 'pve-2.fabricesemti.dev' %}
-auto enx7cc2c64b4dc4
-iface enx7cc2c64b4dc4 inet static
-    address 10.0.70.12/24
+iface enx7cc2c64b4dc4 inet manual
 {% endif %}
 
-# The eth0 interface might be conflicting with the USB interface
-# Commenting out for now
-#auto eth0
-#iface eth0 inet static
-#    address 10.0.70.{{ ansible_host.split('.')[-1] }}/24
+# Ceph and VM Storage Bridge
+auto vmbr1
+iface vmbr1 inet static
+{% if inventory_hostname == 'pve-0.fabricesemti.dev' %}
+    address 10.0.70.10/24
+    bridge-ports enx7cc2c64ca36f
+{% elif inventory_hostname == 'pve-1.fabricesemti.dev' %}
+    address 10.0.70.11/24
+    bridge-ports enx7cc2c64b6389
+{% elif inventory_hostname == 'pve-2.fabricesemti.dev' %}
+    address 10.0.70.12/24
+    bridge-ports enx7cc2c64b4dc4
+{% endif %}
+    bridge-stp off
+    bridge-fd 0
+    description Ceph and VM Storage Network
 
+# Primary Management Bridge
 auto vmbr0
 iface vmbr0 inet static
     address 10.0.40.{{ ansible_host.split('.')[-1] }}/24

@@ -73,6 +73,13 @@ tasks:
     cmds:
     - 'ansible-playbook -i inventory site.yml -e ''{"pve_reboot_on_kernel_update": true}'''
 
+  deploy-networking-targeted:
+    desc: Deploy complete Proxmox infrastructure
+    aliases: [ apply ]
+    deps: [ check-env ]
+    cmds:
+    - 'ansible-playbook -i inventory site.yml --tags networking --limit pve-2.fabricesemti.dev -e ''{"pve_reboot_on_kernel_update": true}'''
+
   deploy:verbose:
     desc: Deploy complete Proxmox infrastructure
     aliases: [ apply ]
