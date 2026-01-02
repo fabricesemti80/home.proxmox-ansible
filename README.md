@@ -7,12 +7,15 @@ Ansible-based infrastructure automation for deploying and managing a 3-node Prox
 This project automates the complete setup of a production-ready Proxmox cluster with:
 
 - **3-node Proxmox VE cluster** with high availability
+- **Keepalived HA** with floating VIP (10.0.40.15) for GUI access
 - **Ceph distributed storage** using NVMe drives
 - **Dual network configuration** (management + Ceph networks)
 - **NFS storage integration** for backups, ISOs, and templates
 - **Automated backup jobs** for VMs and templates with retention policies
 - **Gmail SMTP notifications** for cluster alerts and backup status
-- **User management** for API automation tools (Packer, Terraform)
+- **API tokens** for automation tools (Packer, Terraform)
+- **Resource pools** for organizing VMs and storage
+- **Chrony NTP** time synchronization across all nodes
 - **SSH key deployment** and security hardening
 
 ## Architecture
@@ -224,15 +227,32 @@ task apply
 ## Available Tasks
 
 ```bash
-task init              # Install Ansible Galaxy requirements
-task check             # Dry run with diff preview
+# Setup & Initialization
+task setup             # Install Ansible Galaxy requirements (alias: init)
+
+# Main Deployment
 task apply             # Full cluster deployment
-task apply-skip-ssh    # Deploy without SSH cluster config
-task gmail-only        # Configure Gmail SMTP only
-task test-gmail        # Test Gmail SMTP with email
-task backup-only       # Configure backup jobs only
-task configure-network # Configure secondary network interfaces
-task add-nodes         # Add remaining nodes to existing cluster
+task plan              # Preview deployment changes (dry run with diff)
+task apply:check       # Preview deployment changes (alias: check)
+task apply:verbose     # Deploy with verbose output
+task apply:no-ssh      # Deploy skipping SSH cluster configuration
+
+# Cluster Management
+task cluster:add-nodes           # Add remaining nodes to existing cluster
+task cluster:configure-network   # Configure secondary network (10.0.70.0/24)
+
+# Notifications & SMTP
+task smtp:configure    # Configure Gmail SMTP for notifications
+task smtp:test         # Test Gmail SMTP by sending test emails
+
+# Backup Management
+task backup:configure  # Configure automated backup jobs
+
+# API & Automation
+task api:tokens        # Generate API tokens for Packer and Terraform
+task api:pools         # Create and configure Proxmox resource pools
+task api:pools:check   # Preview resource pool changes (dry run)
+task api:setup         # Setup complete API automation (tokens + pools)
 ```
 
 ## Post-Deployment Configuration
@@ -296,6 +316,38 @@ template_backup:
 
 Monitor backups via Proxmox web UI: **Datacenter → Backup**
 
+### High Availability Access
+
+The cluster uses Keepalived with VRRP to provide a floating VIP for GUI access:
+
+- **Floating VIP:** `10.0.40.15`
+- **HA Access URL:** `https://10.0.40.15:8006`
+- **Failover:** Automatic failover between nodes
+
+This ensures you can always access the Proxmox web UI via the same IP, regardless of which node is currently master.
+
+### Resource Pools
+
+Resource pools can be configured to organize VMs and storage:
+
+```bash
+# Create/update pools
+task api:pools
+
+# Preview changes
+task api:pools:check
+```
+
+Configure pools in `group_vars/pve01`:
+
+```yaml
+pve_pools:
+  - name: "production"
+    comment: "Production VMs"
+    vms: [100, 101]
+    storage: ["local-lvm", "ceph1"]
+```
+
 ## Project Structure
 
 ```
@@ -305,15 +357,21 @@ Monitor backups via Proxmox web UI: **Datacenter → Backup**
 ├── Taskfile.yml            # Task automation
 ├── .envrc.example          # Environment variables template
 ├── group_vars/
+│   ├── all                 # Global variables (NTP, timezone)
 │   └── pve01               # Cluster-specific variables
 ├── templates/
 │   └── interfaces-pve01.j2 # Network interface template
 ├── files/
 │   └── root_pve_rsa*       # SSH key pair
+├── tokens/                 # Generated API tokens (git-ignored)
 ├── roles/
 │   ├── requirements.yml    # External role dependencies
+│   ├── chrony/             # NTP time synchronization role
+│   ├── keepalived/         # HA floating VIP configuration
+│   ├── proxmox_api_tokens/ # API token generation for Packer/Terraform
+│   ├── proxmox_backup/     # Backup job configuration role
 │   ├── proxmox_gmail_smtp/ # Gmail SMTP configuration role
-│   └── proxmox_backup/     # Backup job configuration role
+│   └── proxmox_pools/      # Resource pool management role
 └── hack/
     ├── clean_ceph_services.sh
     └── clean_ceph_volumes.sh
@@ -328,12 +386,15 @@ Monitor backups via Proxmox web UI: **Datacenter → Backup**
 - **Task** - Build automation tool (Taskfile.yml)
 - **NFS** - Network file system for shared storage
 - **Postfix** - SMTP relay for Gmail notifications
+- **Keepalived** - High availability with VRRP floating VIP
+- **Chrony** - NTP time synchronization
 
 ### Key Dependencies
 
-- `geerlingguy.ntp` - NTP time synchronization
 - `lae.proxmox` - Proxmox VE installation and configuration
 - `bridge-utils` - Network bridge management
+- `keepalived` - VRRP-based high availability
+- `chrony` - Modern NTP client/server
 
 ## Security
 
