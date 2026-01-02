@@ -171,4 +171,12 @@
   vars:
     proxmox_vip: "10.0.40.15"
   roles:
-    - keepalived
+  - keepalived
+
+# ----------------------------- Deploy Beszel Agent -------------------------- #
+- hosts: pve01
+  become: True
+  tags: beszel_agent
+  roles:
+  - beszel_agent
+    

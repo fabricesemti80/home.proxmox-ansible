@@ -1,0 +1,8 @@
+---
+- name: restart beszel-agent
+  ansible.builtin.systemd:
+    name: beszel-agent
+    state: restarted
+    daemon_reload: true
+  listen: "restart beszel-agent"
+  when: not ansible_check_mode

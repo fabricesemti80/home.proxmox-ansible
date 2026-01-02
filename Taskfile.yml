@@ -80,6 +80,39 @@ tasks:
       cmds:
       - 'ansible-playbook -i inventory site.yml -e ''{"pve_reboot_on_kernel_update": true}'' --check --diff'
 
+# ---------------------------------------------------------------------------- #
+#                                Selective Tasks                               #
+# ---------------------------------------------------------------------------- #
+
+  apply-beszel-agent:
+    desc: Deploy Beszel Agent to Proxmox hosts
+    aliases: [ apply ]
+    deps: [ check-env ]
+    cmds:
+    - 'ansible-playbook -i inventory site.yml -e ''{"pve_reboot_on_kernel_update": true}'' --tags beszel_agent'
+
+  plan-beszel-agent:
+      desc: Plan to deploy Beszel Agent to Proxmox hosts
+      aliases: [ apply ]
+      deps: [ check-env ]
+      cmds:
+      - 'ansible-playbook -i inventory site.yml -e ''{"pve_reboot_on_kernel_update": true}'' --check --diff --tags beszel_agent'
+
+  rm-apply-beszel-agent:
+    desc:  Remove Beszel Agent from Proxmox hosts
+    aliases: [ apply ]
+    deps: [ check-env ]
+    cmds:
+    - 'ansible-playbook -i inventory site.yml -e ''{"pve_reboot_on_kernel_update": true}'' --tags beszel_agent -e "beszel_agent_state=absent"'
+
+  rm-plan-beszel-agent:
+    desc: Plan to remove Beszel Agent from Proxmox hosts
+    aliases: [ apply ]
+    deps: [ check-env ]
+    cmds:
+    - 'ansible-playbook -i inventory site.yml -e ''{"pve_reboot_on_kernel_update": true}'' --check --diff --tags beszel_agent -e "beszel_agent_state=absent"'
+
+
 
   apply-networking-targeted:
     desc: Deploy complete Proxmox infrastructure
