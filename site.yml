@@ -163,3 +163,12 @@
   tags: pools
   roles:
   - proxmox_pools
+
+# ----------------------------- Configure Keepalived ---------------------------- #
+- hosts: pve01
+  become: True
+  tags: keepalived
+  vars:
+    proxmox_vip: "10.0.40.15"
+  roles:
+    - keepalived

@@ -66,35 +66,43 @@ tasks:
   # --------------------------------------------------------------------------
   # Main Deployment Tasks
   # --------------------------------------------------------------------------
-  deploy:
+  apply:
     desc: Deploy complete Proxmox infrastructure
     aliases: [ apply ]
     deps: [ check-env ]
     cmds:
     - 'ansible-playbook -i inventory site.yml -e ''{"pve_reboot_on_kernel_update": true}'''
 
-  deploy-networking-targeted:
+  plan:
+      desc: Check complete Proxmox infrastructure deployment
+      aliases: [ apply ]
+      deps: [ check-env ]
+      cmds:
+      - 'ansible-playbook -i inventory site.yml -e ''{"pve_reboot_on_kernel_update": true}'' --check --diff'
+
+
+  apply-networking-targeted:
     desc: Deploy complete Proxmox infrastructure
     aliases: [ apply ]
     deps: [ check-env ]
     cmds:
     - 'ansible-playbook -i inventory site.yml --tags networking --limit pve-2.fabricesemti.dev -e ''{"pve_reboot_on_kernel_update": true}'''
 
-  deploy:verbose:
+  apply:verbose:
     desc: Deploy complete Proxmox infrastructure
     aliases: [ apply ]
     deps: [ check-env ]
     cmds:
     - 'ansible-playbook -i inventory site.yml -e ''{"pve_reboot_on_kernel_update": true}'' -vv'
 
-  deploy:check:
+  apply:check:
     desc: Preview deployment changes (dry run)
     aliases: [ check ]
     deps: [ check-env ]
     cmds:
     - 'ansible-playbook -i inventory site.yml -e ''{"pve_reboot_on_kernel_update": true}'' --check --diff'
 
-  deploy:no-ssh:
+  apply:no-ssh:
     desc: Deploy infrastructure skipping SSH cluster configuration
     deps: [ check-env ]
     cmds:
