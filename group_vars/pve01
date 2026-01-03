@@ -84,14 +84,13 @@ pve_acls:
   roles: [ "PVESDNAdmin" ] # SDN administration for network management
   groups: [ "api-automation" ]
 
-# ---------------------------------------------------------------------------- #
-#                                  PVE storage                                 #
-# ---------------------------------------------------------------------------- #
-# pve_zfs_create_volumes:
-#   - rpool/iso
+#! ---------------------------------------------------------------------------- #
+#!                                  PVE storage  START                          #
+#! ---------------------------------------------------------------------------- #
+
+#* ------------------------------ Local storages ------------------------------ #
 pve_storages:
 
-# ------------------------------ Default storage ----------------------------- #
 #? All possible contents: snippets, images, rootdir, vztmpl, iso, backup
 - name: localdir
   type: dir
@@ -103,7 +102,7 @@ pve_storages:
     ] # Allow to store container data.
   path: /plop
 
-# ------------------------------- NFS Backup storage ------------------------------- #
+#* ------------------------------- NFS storages ------------------------------- #
 #? NFS Backup Storage - Network-based backup storage
 #? Characteristics: Network filesystem, shared across cluster, dedicated for backups
 #? Use case: VM and template backup storage, centralized backup management
@@ -118,7 +117,6 @@ pve_storages:
     ] # Backup files (vzdump).
   # maxfiles: 4 # only for Backup storage!
 
-  # ------------------------------- NFS ISO storage ------------------------------- #
 #? NFS ISO Storage - Network-based ISO image storage
 #? Characteristics: Network filesystem, shared across cluster, optimized for ISO files
 #? Use case: ISO images and imported cloud images, shared access across cluster
@@ -133,7 +131,6 @@ pve_storages:
       "import"
     ] # ISO images and imported files (cloud images, etc.)
 
-# ------------------------------ NFS Template storage ------------------------------ #
 #? NFS Template Storage - Network-based template storage
 #? Characteristics: Network filesystem, shared across cluster, for templates and images
 #? Use case: VM templates and base images, shared template library
@@ -150,12 +147,12 @@ pve_storages:
       "images"
     ] # Container templates and VM templates
 
-# --------------------------------- CEPH RBD --------------------------------- #
+#* ------------------------------- CEPH storages ------------------------------ #
 #? Ceph RBD (RADOS Block Device) - Block-level storage for VMs and containers
 #? Characteristics: Low latency, high performance, appears as block device
 #? Use case: Primary VM storage, container root filesystems, when you need best I/O performance
 #? All possible contents: images, rootdir
-- name: ceph1
+- name: ceph-proxmox-rbd
   type: rbd
   content:
     [
@@ -172,29 +169,20 @@ pve_storages:
   - 10.0.70.11
   - 10.0.70.12
 
-# --------------------------------- CEPH FS ---------------------------------- #
 #? CephFS (Ceph File System) - File-level distributed storage for snippets, etc.
 #? All possible contents: snippets, backup, iso, vztmpl
-- name: cephfs-vm
+- name: ceph-proxmox-fs
   type: cephfs
   content:
     [
       "snippets"
     ]
-  fs-name: cephfs-vm
+  fs-name: ceph-proxmox-fs
   username: admin
   monhost: 10.0.70.10,10.0.70.11,10.0.70.12
-  path: /mnt/pve/cephfs-vm
+  path: /mnt/pve/ceph-proxmox-fs
   nodes: "pve-0,pve-1,pve-2"
 
-# ---------------------------------------------------------------------------- #
-#                             PVE networking                                   #
-# ---------------------------------------------------------------------------- #
-pve_ssh_port: 22
-interfaces_template: "interfaces-{{ pve_group }}.j2"
-# ---------------------------------------------------------------------------- #
-#                                     CEPH                                     #
-# ---------------------------------------------------------------------------- #
 pve_ceph_enabled: true
 
 pve_ceph_network: "10.0.70.0/24"
@@ -247,6 +235,16 @@ pve_ceph_fs:
     #     "rootdir",
     #     "snippets"
     #   ] # For VM images and container root directories
+
+#! ---------------------------------------------------------------------------- #
+#!                                  PVE storage  END                            #
+#! ---------------------------------------------------------------------------- #
+
+# ---------------------------------------------------------------------------- #
+#                             PVE networking                                   #
+# ---------------------------------------------------------------------------- #
+pve_ssh_port: 22
+interfaces_template: "interfaces-{{ pve_group }}.j2"
 
 # ---------------------------------------------------------------------------- #
 #                              Gmail SMTP Configuration                        #

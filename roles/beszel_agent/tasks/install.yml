@@ -44,4 +44,4 @@
     name: beszel-agent
     state: started
     enabled: true
-  when: not ansible_check_mode or agent_service_file.stat.exists
+  when: agent_service_file.stat.exists
