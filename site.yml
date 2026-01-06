@@ -177,6 +177,8 @@
 - hosts: pve01
   become: True
   tags: beszel_agent
+  vars:
+    agent_public_key: "{{ lookup('env', 'BESZEL_AGENT_KEY') }}"
   roles:
-  - beszel_agent
+  - community.beszel.agent
     
