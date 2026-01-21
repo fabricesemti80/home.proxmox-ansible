@@ -178,7 +178,10 @@
   become: True
   tags: beszel_agent
   vars:
-    agent_public_key: "{{ lookup('env', 'BESZEL_AGENT_KEY') }}"
+    beszel_agent_state: "{{ _beszel_state | default('present') }}"
+    beszel_agent_key: "{{ lookup('env', 'BESZEL_AGENT_KEY') }}"
+    beszel_agent_token: "{{ lookup('env', 'BESZEL_AGENT_TOKEN') }}"
+    beszel_agent_hub_url: "{{ lookup('env', 'BESZEL_HUB_URL') }}"
   roles:
-  - community.beszel.agent
+  - beszel_agent
     

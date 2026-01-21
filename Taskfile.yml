@@ -103,14 +103,14 @@ tasks:
     aliases: [ apply ]
     deps: [ check-env ]
     cmds:
-    - 'ansible-playbook -i inventory site.yml -e ''{"pve_reboot_on_kernel_update": true}'' --tags beszel_agent -e "beszel_agent_state=absent"'
+    - 'ansible-playbook -i inventory site.yml -e ''{"pve_reboot_on_kernel_update": true}'' --tags beszel_agent -e "_beszel_state=absent"'
 
   rm-plan-beszel-agent:
     desc: Plan to remove Beszel Agent from Proxmox hosts
     aliases: [ apply ]
     deps: [ check-env ]
     cmds:
-    - 'ansible-playbook -i inventory site.yml -e ''{"pve_reboot_on_kernel_update": true}'' --check --diff --tags beszel_agent -e "beszel_agent_state=absent"'
+    - 'ansible-playbook -i inventory site.yml -e ''{"pve_reboot_on_kernel_update": true}'' --check --diff --tags beszel_agent -e "_beszel_state=absent"'
 
   plan-remove-ceph-storage:
     desc: Plan removing Ceph storages (cephfs-vm, ceph1, vm-storage) from Proxmox hosts
