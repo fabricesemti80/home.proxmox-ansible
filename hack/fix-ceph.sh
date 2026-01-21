@@ -50,21 +50,43 @@ restart_services() {
     "
 }
 
-recover_monitor() {
+cleanup_backups() {
     local target_node=$1
     local target_id=""
-    
+
     # Determine ID from IP (simple mapping for this lab)
     if [[ "$target_node" == "10.0.40.10" ]]; then target_id="pve-0"; fi
     if [[ "$target_node" == "10.0.40.11" ]]; then target_id="pve-1"; fi
     if [[ "$target_node" == "10.0.40.12" ]]; then target_id="pve-2"; fi
-    
+
     if [[ -z "$target_id" ]]; then
         log_err "Could not determine Node ID for IP $target_node. (Expected 10.0.40.10-12)"
         exit 1
     fi
 
-    log_warn "WARNING: This will WIPE and REBUILD the Ceph Monitor store on $target_id ($target_node)."
+    log_info "Removing backup directories for $target_id on $target_node..."
+    ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$target_node "
+        rm -rf /var/lib/ceph/mon/ceph-$target_id.bak.*
+    "
+    log_info "Done."
+}
+
+remove_monitor() {
+    local target_node=$1
+    local target_id=""
+
+    # Determine ID from IP (simple mapping for this lab)
+    if [[ "$target_node" == "10.0.40.10" ]]; then target_id="pve-0"; fi
+    if [[ "$target_node" == "10.0.40.11" ]]; then target_id="pve-1"; fi
+    if [[ "$target_node" == "10.0.40.12" ]]; then target_id="pve-2"; fi
+
+    if [[ -z "$target_id" ]]; then
+        log_err "Could not determine Node ID for IP $target_node. (Expected 10.0.40.10-12)"
+        exit 1
+    fi
+
+    log_warn "WARNING: This will REMOVE the Ceph Monitor '$target_id' ($target_node) from the cluster."
+    log_warn "This is IRREVERSIBLE. Make sure you have a quorum before proceeding!"
     read -p "Are you sure you want to proceed? (y/N) " -n 1 -r
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
@@ -72,14 +94,82 @@ recover_monitor() {
         exit 0
     fi
 
+    log_info "Removing monitor '$target_id' from cluster..."
+    ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$HEALTHY_NODE "
+        ceph mon remove $target_id
+    "
+
+    log_info "Stopping ceph-mon service on $target_node..."
+    ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$target_node "
+        systemctl stop ceph-mon@$target_id.service || true
+        systemctl disable ceph-mon@$target_id.service || true
+    "
+
+    log_info "Cleaning up monitor data directory on $target_node..."
+    ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$target_node "
+        rm -rf /var/lib/ceph/mon/ceph-$target_id
+    "
+
+    log_info "Monitor '$target_id' removed successfully."
+    log_info "Run 'ceph -s' on $HEALTHY_NODE to verify cluster health."
+}
+
+get_target_id() {
+    local target_node=$1
+    local target_id=""
+    
+    # Check for management IPs (10.0.40.x) - only these have SSH access
+    if [[ "$target_node" == "10.0.40.10" ]]; then target_id="pve-0"; fi
+    if [[ "$target_node" == "10.0.40.11" ]]; then target_id="pve-1"; fi
+    if [[ "$target_node" == "10.0.40.12" ]]; then target_id="pve-2"; fi
+
+    echo "$target_id"
+}
+
+recover_monitor() {
+    local target_node=$1
+    local force=${2:-false}
+    local target_id=$(get_target_id "$target_node")
+
+    if [[ -z "$target_id" ]]; then
+        log_err "Could not determine Node ID for IP $target_node. (Expected 10.0.40.10-12 - management IPs only)"
+        log_err "Note: 10.0.70.x IPs are internal Ceph network with no SSH access."
+        exit 1
+    fi
+
+    if [[ "$force" != "true" ]]; then
+        log_warn "WARNING: This will WIPE and REBUILD the Ceph Monitor store on $target_id ($target_node)."
+        read -p "Are you sure you want to proceed? (y/N) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            log_info "Aborted."
+            exit 0
+        fi
+    fi
+
+    log_info "Checking current mon status..."
+    ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$HEALTHY_NODE "ceph mon dump 2>/dev/null | grep $target_id && echo \"Monitor exists in map\" || echo \"Monitor not in map\""
+
     log_info "Stopping ceph-mon@$target_id..."
     ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$target_node "systemctl stop ceph-mon@$target_id.service || true"
 
-    log_info "Backing up and cleaning existing store..."
+    # Check if mon exists in map but local data is corrupted/missing
+    log_info "Checking for stale monmap entry..."
+    local mon_in_map=$(ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$HEALTHY_NODE "ceph mon dump 2>/dev/null | grep -c $target_id" || echo "0")
+    if [[ "$mon_in_map" -gt 0 ]]; then
+        log_warn "Monitor $target_id exists in monmap but may have stale data. Removing stale entry first..."
+        ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$HEALTHY_NODE "ceph mon remove $target_id"
+        log_info "Removed stale monmap entry for $target_id"
+    fi
+
+    log_info "Backing up and cleaning existing store completely..."
     ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$target_node "
-        rm -f /tmp/monmap /tmp/ceph.mon.keyring /tmp/ceph.client.admin.keyring
+        rm -f /tmp/monmap /tmp/ceph.mon.keyring /tmp/ceph.client.admin.keyring /tmp/ceph.conf
+        # Remove stale lock files and backup old store
+        rm -rf /var/lib/ceph/mon/ceph-$target_id/store.db/*.lock /var/lib/ceph/mon/ceph-$target_id/store.db/LOCK
+        # Backup and completely remove old store
         if [ -d /var/lib/ceph/mon/ceph-$target_id ]; then
-             mv /var/lib/ceph/mon/ceph-$target_id /var/lib/ceph/mon/ceph-$target_id.bak.\$(date +%s)
+            mv /var/lib/ceph/mon/ceph-$target_id /var/lib/ceph/mon/ceph-$target_id.bak.\$(date +%s)
         fi
         mkdir -p /var/lib/ceph/mon/ceph-$target_id
         chown ceph:ceph /var/lib/ceph/mon/ceph-$target_id
@@ -105,12 +195,22 @@ recover_monitor() {
         chown ceph:ceph /var/lib/ceph/mon/ceph-$target_id/done
     "
 
+    # Wait a moment for mkfs to complete fully
+    sleep 2
+
     log_info "Starting Service..."
     ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$target_node "
-        systemctl start ceph-mon@$target_id.service
-        rm /tmp/monmap /tmp/ceph.mon.keyring /tmp/ceph.client.admin.keyring /tmp/ceph.conf
+        systemctl start ceph-mon@$target_id.service || {
+            echo \"ERROR: Failed to start service. Checking logs...\"
+            journalctl -u ceph-mon@$target_id.service --no-pager -n 30
+        }
     "
     
+    log_info "Cleaning up temp files..."
+    ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$target_node "
+        rm -f /tmp/monmap /tmp/ceph.mon.keyring /tmp/ceph.client.admin.keyring /tmp/ceph.conf 2>/dev/null || true
+    "
+
     log_info "Waiting for service to stabilize..."
     sleep 5
     ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$target_node "systemctl status ceph-mon@$target_id.service --no-pager"
@@ -119,10 +219,13 @@ recover_monitor() {
 usage() {
     echo "Usage: $0 [options]"
     echo "Options:"
-    echo "  --maintenance    Run maintenance (fix logs, restart services) on ALL nodes."
-    echo "  --recover <IP>   Recover a corrupted monitor on a specific node IP."
-    echo "  --status         Check cluster status."
-    echo "  --help           Show this help message."
+    echo "  --maintenance          Run maintenance (fix logs, restart services) on ALL nodes."
+    echo "  --recover <IP>         Recover a corrupted monitor on a specific node IP."
+    echo "  --force-recover <IP>   Force recover without confirmation."
+    echo "  --remove-mon <IP>      Remove a stale/backup monitor from the cluster."
+    echo "  --cleanup-backups <IP> Remove backup directories from a node."
+    echo "  --status               Check cluster status."
+    echo "  --help                 Show this help message."
 }
 
 if [[ $# -eq 0 ]]; then
@@ -144,10 +247,31 @@ case "$1" in
             log_err "Please specify the node IP to recover."
             exit 1
         fi
-        recover_monitor $2
+        recover_monitor $2 "false"
+        ;;
+    --force-recover)
+        if [[ -z "$2" ]]; then
+            log_err "Please specify the node IP to recover."
+            exit 1
+        fi
+        recover_monitor $2 "true"
         ;;
     --status)
         ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$HEALTHY_NODE "ceph -s"
+        ;;
+    --remove-mon)
+        if [[ -z "$2" ]]; then
+            log_err "Please specify the node IP to remove."
+            exit 1
+        fi
+        remove_monitor $2
+        ;;
+    --cleanup-backups)
+        if [[ -z "$2" ]]; then
+            log_err "Please specify the node IP."
+            exit 1
+        fi
+        cleanup_backups $2
         ;;
     *)
         usage
