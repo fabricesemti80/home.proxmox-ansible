@@ -132,6 +132,21 @@
         state: started
         enabled: yes
 
+    # Wait for MDS to be active before creating subvolume groups
+    - name: Wait for Ceph MDS to be active
+      command: ceph mds stat
+      register: _mds_stat
+      until: "'up:active' in _mds_stat.stdout"
+      retries: 30
+      delay: 2
+      check_mode: no
+
+    - name: Create CephFS subvolume group for Kubernetes CSI
+      command: "ceph fs subvolume group create cephfs-vm csi"
+      register: _csi_subvol_create
+      failed_when: false
+      changed_when: "'already exists' not in _csi_subvol_create.stderr and _csi_subvol_create.rc == 0"
+
 # ---------------------------------------------------------------------------- #
 #                                Post-deployment                               #
 # ---------------------------------------------------------------------------- #
