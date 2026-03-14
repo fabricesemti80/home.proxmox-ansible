@@ -142,7 +142,7 @@
       check_mode: no
 
     - name: Create CephFS subvolume group for Kubernetes CSI
-      command: "ceph fs subvolume group create cephfs-vm csi"
+      command: "ceph fs subvolumegroup create cephfs-vm csi"
       register: _csi_subvol_create
       failed_when: false
       changed_when: "'already exists' not in _csi_subvol_create.stderr and _csi_subvol_create.rc == 0"
