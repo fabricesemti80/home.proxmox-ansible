@@ -204,11 +204,11 @@ pve_ceph_osds:
 pve_ceph_pools:
 - name: ssd
   pgs: 32
-  rule: ssd
+  rule: replicated_rule
   application: rbd
   storage: true
   size: 2
-  min-size: 1
+  min-size: 2
 
 - name: vm-storage
   pgs: 128

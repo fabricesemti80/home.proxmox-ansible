@@ -216,6 +216,159 @@ recover_monitor() {
     ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$target_node "systemctl status ceph-mon@$target_id.service --no-pager"
 }
 
+repair_inconsistent_pgs() {
+    log_info "Finding inconsistent PGs..."
+    local pgs=$(ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$HEALTHY_NODE "ceph health detail 2>/dev/null | grep -oP 'pg \K[0-9]+\.[0-9a-f]+(?=.*inconsistent)' | sort -u")
+    
+    if [[ -z "$pgs" ]]; then
+        log_info "No inconsistent PGs found."
+        return 0
+    fi
+    
+    log_warn "Found inconsistent PGs: $pgs"
+    read -p "Repair these PGs? (y/N) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        log_info "Aborted."
+        return 0
+    fi
+    
+    for pg in $pgs; do
+        log_info "Repairing PG $pg..."
+        ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$HEALTHY_NODE "ceph pg repair $pg"
+    done
+    log_info "PG repair commands issued. Monitor with 'ceph -s'."
+}
+
+repair_osd() {
+    local target_node=$1
+    local target_id=$(get_target_id "$target_node")
+    
+    if [[ -z "$target_id" ]]; then
+        log_err "Could not determine Node ID for IP $target_node."
+        exit 1
+    fi
+    
+    # Find OSD number for this host
+    local osd_num=$(ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$HEALTHY_NODE "ceph osd tree 2>/dev/null | grep -A1 'host $target_id' | grep 'osd\.' | awk '{print \$4}' | sed 's/osd\.//'")
+    
+    if [[ -z "$osd_num" ]]; then
+        log_err "Could not find OSD for host $target_id"
+        exit 1
+    fi
+    
+    log_info "Found osd.$osd_num on $target_id ($target_node)"
+    log_warn "This will attempt to repair the BlueStore database for osd.$osd_num"
+    read -p "Proceed? (y/N) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        log_info "Aborted."
+        return 0
+    fi
+    
+    log_info "Stopping osd.$osd_num..."
+    ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$target_node "systemctl stop ceph-osd@$osd_num"
+    
+    log_info "Running BlueStore repair..."
+    ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$target_node "ceph-bluestore-tool repair --path /var/lib/ceph/osd/ceph-$osd_num"
+    local repair_status=$?
+    
+    log_info "Starting osd.$osd_num..."
+    ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$target_node "systemctl start ceph-osd@$osd_num"
+    
+    if [[ $repair_status -eq 0 ]]; then
+        log_info "Repair completed successfully."
+    else
+        log_err "Repair failed. OSD may need to be recreated."
+        log_info "To recreate: pveceph osd destroy $osd_num && pveceph osd create <device>"
+    fi
+}
+
+recreate_osd() {
+    local target_node=$1
+    local target_id=$(get_target_id "$target_node")
+    
+    if [[ -z "$target_id" ]]; then
+        log_err "Could not determine Node ID for IP $target_node."
+        exit 1
+    fi
+    
+    # Find OSD number for this host
+    local osd_num=$(ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$HEALTHY_NODE "ceph osd tree 2>/dev/null | grep -A1 'host $target_id' | grep 'osd\.' | awk '{print \$4}' | sed 's/osd\.//'")
+    
+    if [[ -z "$osd_num" ]]; then
+        log_err "Could not find OSD for host $target_id"
+        exit 1
+    fi
+    
+    log_warn "WARNING: This will DESTROY and RECREATE osd.$osd_num on $target_id"
+    log_warn "All data on this OSD will be lost. Data will be recovered from other OSDs."
+    read -p "Are you sure? (y/N) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        log_info "Aborted."
+        return 0
+    fi
+    
+    log_info "Finding device for osd.$osd_num..."
+    local osd_device=$(ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$target_node "
+        lsblk -o NAME,TYPE | grep -E 'nvme|sd[a-z]' | grep disk | head -1 | awk '{print \"/dev/\" \$1}'
+    ")
+    
+    if [[ -z "$osd_device" ]]; then
+        log_err "Could not determine OSD device. Please specify manually."
+        exit 1
+    fi
+    
+    log_info "Using device: $osd_device"
+    
+    log_info "Stopping and removing osd.$osd_num..."
+    ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$target_node "
+        systemctl stop ceph-osd@$osd_num || true
+        ceph osd out $osd_num
+        ceph osd down $osd_num
+        ceph osd rm $osd_num
+        ceph auth del osd.$osd_num
+        ceph osd crush rm osd.$osd_num
+        rm -rf /var/lib/ceph/osd/ceph-$osd_num
+    "
+    
+    log_info "Wiping device..."
+    ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$target_node "
+        # Remove LVM
+        vgremove -f \$(pvs --noheadings -o vg_name $osd_device 2>/dev/null | tr -d ' ') 2>/dev/null || true
+        pvremove -f $osd_device 2>/dev/null || true
+        
+        # Full wipe
+        wipefs -af $osd_device
+        sgdisk --zap-all $osd_device
+        dd if=/dev/zero of=$osd_device bs=1M count=200 status=none
+        partprobe $osd_device
+        sleep 2
+        
+        # Reset systemd state
+        systemctl reset-failed ceph-osd@$osd_num 2>/dev/null || true
+    "
+    
+    log_info "Creating new OSD..."
+    ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$target_node "pveceph osd create $osd_device"
+    
+    if [[ $? -eq 0 ]]; then
+        log_info "OSD recreated successfully. Recovery will start automatically."
+        log_info "Monitor with: ceph -s"
+    else
+        log_err "Failed to create OSD. Check 'journalctl -u ceph-osd@* -n 50' for details."
+    fi
+}
+
+deep_scrub_all() {
+    log_info "Initiating deep-scrub on all PGs..."
+    ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$HEALTHY_NODE "
+        ceph osd deep-scrub all
+    "
+    log_info "Deep-scrub initiated. This runs in background. Check 'ceph -s' for progress."
+}
+
 usage() {
     echo "Usage: $0 [options]"
     echo "Options:"
@@ -225,6 +378,10 @@ usage() {
     echo "  --remove-mon <IP>      Remove a stale/backup monitor from the cluster."
     echo "  --cleanup-backups <IP> Remove backup directories from a node."
     echo "  --status               Check cluster status."
+    echo "  --repair-pgs           Find and repair inconsistent PGs."
+    echo "  --repair-osd <IP>      Attempt BlueStore repair on OSD at given node."
+    echo "  --recreate-osd <IP>    Destroy and recreate OSD on given node (data loss!)."
+    echo "  --deep-scrub           Initiate deep-scrub on all PGs."
     echo "  --help                 Show this help message."
 }
 
@@ -272,6 +429,26 @@ case "$1" in
             exit 1
         fi
         cleanup_backups $2
+        ;;
+    --repair-pgs)
+        repair_inconsistent_pgs
+        ;;
+    --repair-osd)
+        if [[ -z "$2" ]]; then
+            log_err "Please specify the node IP."
+            exit 1
+        fi
+        repair_osd $2
+        ;;
+    --recreate-osd)
+        if [[ -z "$2" ]]; then
+            log_err "Please specify the node IP."
+            exit 1
+        fi
+        recreate_osd $2
+        ;;
+    --deep-scrub)
+        deep_scrub_all
         ;;
     *)
         usage
