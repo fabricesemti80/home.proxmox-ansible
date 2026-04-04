@@ -1,0 +1,6 @@
+---
+- hosts: pve-2.fabricesemti.dev
+  become: True
+  gather_facts: True
+  roles:
+    - proxmox_gpu_passthrough

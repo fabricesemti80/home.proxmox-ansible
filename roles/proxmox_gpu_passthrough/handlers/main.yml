@@ -1,0 +1,11 @@
+---
+- name: update-grub
+  ansible.builtin.command: update-grub
+
+- name: update-initramfs
+  ansible.builtin.command: update-initramfs -u -k all
+  failed_when: false
+
+- name: refresh-boot-tool
+  ansible.builtin.command: proxmox-boot-tool refresh
+  failed_when: false
