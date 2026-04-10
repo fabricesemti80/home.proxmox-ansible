@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+key_path="${ANSIBLE_SSH_PRIVATE_KEY_FILE:-$HOME/.ssh/fs_home_rsa}"
+
+if [[ ! -f "$key_path" ]]; then
+  printf 'Missing SSH private key: %s\n' "$key_path" >&2
+  echo 'Set ANSIBLE_SSH_PRIVATE_KEY_FILE or place the key at ~/.ssh/fs_home_rsa.' >&2
+  exit 1
+fi

@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -lt 1 ]]; then
+  echo "usage: mise run run-playbook <playbook> [ansible-playbook args...]" >&2
+  exit 1
+fi
+
+playbook="$1"
+shift
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+doppler run --project project-proxmoxhosts -- \
+  bash -lc '
+    set -euo pipefail
+    env_script="$1"
+    playbook="$2"
+    shift 2
+    source "$env_script"
+    ansible-playbook -i inventory "$playbook" "$@"
+  ' bash "$script_dir/_ansible-env" "$playbook" "$@"

@@ -177,12 +177,12 @@ cp .envrc.example .envrc
 nano .envrc
 ```
 
-Configure your credentials in `.envrc`:
+Configure your local environment in `.envrc`:
 
 ```bash
-# Ansible SSH credentials for Proxmox nodes
+# Optional Ansible SSH overrides for Proxmox nodes
 export ANSIBLE_USER="root"
-export ANSIBLE_PASSWORD="your-proxmox-root-password"
+export ANSIBLE_SSH_PRIVATE_KEY_FILE="$HOME/.ssh/fs_home_rsa"
 
 # Gmail SMTP Configuration for notifications
 export GMAIL_SMTP_USERNAME="your-email@gmail.com"
@@ -211,49 +211,52 @@ source .envrc
 
 ```bash
 # Install Ansible Galaxy requirements
-task init
+mise run init
 ```
 
 ### 4. Deploy the Cluster
 
 ```bash
 # Dry run to preview changes
-task check
+mise run plan
 
 # Full deployment
-task apply
+mise run apply
 ```
 
 ## Available Tasks
 
 ```bash
 # Setup & Initialization
-task setup             # Install Ansible Galaxy requirements (alias: init)
+mise run init                     # Install Ansible Galaxy requirements
+mise run setup                    # Same as init
 
 # Main Deployment
-task apply             # Full cluster deployment
-task plan              # Preview deployment changes (dry run with diff)
-task apply:check       # Preview deployment changes (alias: check)
-task apply:verbose     # Deploy with verbose output
-task apply:no-ssh      # Deploy skipping SSH cluster configuration
+mise run plan                     # Preview full deployment changes
+mise run check                    # Alias for plan
+mise run apply                    # Apply full deployment
+mise run apply-verbose            # Apply with verbose output
+mise run apply-no-ssh             # Apply while skipping ssh_cluster_config
 
-# Cluster Management
-task cluster:add-nodes           # Add remaining nodes to existing cluster
-task cluster:configure-network   # Configure secondary network (10.0.70.0/24)
+# Role-scoped runs against site.yml tags
+mise run role-plan beszel_agent   # Preview only the Beszel agent role
+mise run role-apply beszel_agent  # Apply only the Beszel agent role
+mise run role-plan gmail_smtp     # Preview Gmail SMTP changes
+mise run role-apply backup        # Apply backup role changes
+mise run role-apply pools         # Apply Proxmox pool changes
 
-# Notifications & SMTP
-task smtp:configure    # Configure Gmail SMTP for notifications
-task smtp:test         # Test Gmail SMTP by sending test emails
+# Optional extra ansible-playbook flags after --
+mise run role-apply beszel_agent -- -e "_beszel_state=absent"
 
-# Backup Management
-task backup:configure  # Configure automated backup jobs
-
-# API & Automation
-task api:tokens        # Generate API tokens for Packer and Terraform
-task api:pools         # Create and configure Proxmox resource pools
-task api:pools:check   # Preview resource pool changes (dry run)
-task api:setup         # Setup complete API automation (tokens + pools)
+# Standalone playbooks
+mise run network-configure-secondary
+mise run ceph-remove-storage-plan
+mise run ceph-remove-storage-apply
 ```
+
+These commands use SSH key auth by default.
+This repo resolves `ansible_user` and `ansible_ssh_private_key_file` in [inventory](/Users/fs/Documents/repositories/ansible/infra-ansible-home-proxmoxhosts/inventory), defaulting to `root` and `~/.ssh/fs_home_rsa`.
+For Beszel, `BESZEL_HUB` can be set as `10.0.40.50:8090`, `http://10.0.40.50:8090`, or a full `ws://`/`wss://` URL; the role converts it to the agent's expected WebSocket `/ws` endpoint.
 
 ## Post-Deployment Configuration
 
@@ -263,7 +266,7 @@ Test email functionality after deployment:
 
 ```bash
 # Send test email via Ansible
-task test-gmail
+mise run role-apply gmail_smtp -- -e '{"proxmox_notification_test": true}'
 
 # Manual test from any Proxmox node
 ssh root@10.0.40.10

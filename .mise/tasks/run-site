@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+doppler run --project project-proxmoxhosts -- \
+  bash -lc '
+    set -euo pipefail
+    env_script="$1"
+    shift
+    source "$env_script"
+    ansible-playbook -i inventory site.yml -e "{\"pve_reboot_on_kernel_update\": true}" "$@"
+  ' bash "$script_dir/_ansible-env" "$@"

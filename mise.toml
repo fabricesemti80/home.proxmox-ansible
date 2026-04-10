@@ -1,60 +1,15 @@
 [tasks]
-# --------------------------------------------------------------------------
-# Setup & Initialization
-# --------------------------------------------------------------------------
+default = "mise tasks ls"
+list = "mise tasks ls"
+
 setup = "doppler run --project project-proxmoxhosts -- ansible-galaxy install -r roles/requirements.yml --force"
-init = "doppler run --project project-proxmoxhosts -- ansible-galaxy install -r roles/requirements.yml --force"
+init = "mise run setup"
+plan = ".mise/tasks/run-site --check --diff"
+check = ".mise/tasks/run-site --check --diff"
+apply = ".mise/tasks/run-site"
+"apply-verbose" = ".mise/tasks/run-site -vv"
+"apply-no-ssh" = ".mise/tasks/run-site --skip-tags ssh_cluster_config"
 
-# --------------------------------------------------------------------------
-# Main Deployment Tasks
-# --------------------------------------------------------------------------
-apply = "doppler run --project project-proxmoxhosts -- ansible-playbook -i inventory site.yml -e '{\"pve_reboot_on_kernel_update\": true}'"
-plan = "doppler run --project project-proxmoxhosts -- ansible-playbook -i inventory site.yml -e '{\"pve_reboot_on_kernel_update\": true}' --check --diff"
-"apply.verbose" = "doppler run --project project-proxmoxhosts -- ansible-playbook -i inventory site.yml -e '{\"pve_reboot_on_kernel_update\": true}' -vv"
-"apply.check" = "doppler run --project project-proxmoxhosts -- ansible-playbook -i inventory site.yml -e '{\"pve_reboot_on_kernel_update\": true}' --check --diff"
-"apply.no-ssh" = "doppler run --project project-proxmoxhosts -- ansible-playbook -i inventory site.yml -e '{\"pve_reboot_on_kernel_update\": true}' --skip-tags ssh_cluster_config"
-
-# --------------------------------------------------------------------------
-# Beszel Agent Tasks
-# --------------------------------------------------------------------------
-"apply-beszel-agent" = "doppler run --project project-proxmoxhosts -- ansible-playbook -i inventory site.yml -e '{\"pve_reboot_on_kernel_update\": true}' --tags beszel_agent"
-"plan-beszel-agent" = "doppler run --project project-proxmoxhosts -- ansible-playbook -i inventory site.yml -e '{\"pve_reboot_on_kernel_update\": true}' --check --diff --tags beszel_agent"
-"rm-apply-beszel-agent" = "doppler run --project project-proxmoxhosts -- ansible-playbook -i inventory site.yml -e '{\"pve_reboot_on_kernel_update\": true}' --tags beszel_agent -e \"_beszel_state=absent\""
-"rm-plan-beszel-agent" = "doppler run --project project-proxmoxhosts -- ansible-playbook -i inventory site.yml -e '{\"pve_reboot_on_kernel_update\": true}' --check --diff --tags beszel_agent -e \"_beszel_state=absent\""
-
-# --------------------------------------------------------------------------
-# Ceph Storage Management
-# --------------------------------------------------------------------------
-"plan-remove-ceph-storage" = "doppler run --project project-proxmoxhosts -- ansible-playbook -i inventory remove_cephfs_storage.yml --check --diff"
-"apply-remove-ceph-storage" = "doppler run --project project-proxmoxhosts -- ansible-playbook -i inventory remove_cephfs_storage.yml"
-
-# --------------------------------------------------------------------------
-# Networking Tasks
-# --------------------------------------------------------------------------
-"apply-networking-targeted" = "doppler run --project project-proxmoxhosts -- ansible-playbook -i inventory site.yml --tags networking --limit pve-2.fabricesemti.dev -e '{\"pve_reboot_on_kernel_update\": true}'"
-"cluster.add-nodes" = "doppler run --project project-proxmoxhosts -- ansible-playbook -i inventory add_remaining_nodes.yml"
-"cluster.configure-network" = "doppler run --project project-proxmoxhosts -- ansible-playbook -i inventory configure_secondary_network.yml"
-
-# --------------------------------------------------------------------------
-# SMTP/Notifications
-# --------------------------------------------------------------------------
-"smtp.configure" = "doppler run --project project-proxmoxhosts -- ansible-playbook -i inventory --tags gmail_smtp site.yml"
-"smtp.test" = "doppler run --project project-proxmoxhosts -- ansible-playbook -i inventory site.yml --tags gmail_smtp -e '{\"proxmox_notification_test\": true}'"
-
-# --------------------------------------------------------------------------
-# Backup Management
-# --------------------------------------------------------------------------
-"backup.configure" = "doppler run --project project-proxmoxhosts -- ansible-playbook -i inventory --tags backup site.yml"
-
-# --------------------------------------------------------------------------
-# API & Automation
-# --------------------------------------------------------------------------
-"api.tokens" = "doppler run --project project-proxmoxhosts -- ansible-playbook -i inventory --tags api_tokens site.yml"
-"api.pools" = "doppler run --project project-proxmoxhosts -- ansible-playbook -i inventory --tags pools site.yml"
-"api.pools.check" = "doppler run --project project-proxmoxhosts -- ansible-playbook -i inventory --tags pools site.yml --check --diff"
-"api.setup" = "doppler run --project project-proxmoxhosts -- ansible-playbook -i inventory --tags api_tokens,pools site.yml"
-
-# --------------------------------------------------------------------------
-# Utility
-# --------------------------------------------------------------------------
-list = "mise task --list"
+"ceph-remove-storage-plan" = ".mise/tasks/run-playbook remove_cephfs_storage.yml --check --diff"
+"ceph-remove-storage-apply" = ".mise/tasks/run-playbook remove_cephfs_storage.yml"
+"network-configure-secondary" = ".mise/tasks/run-playbook configure_secondary_network.yml"
