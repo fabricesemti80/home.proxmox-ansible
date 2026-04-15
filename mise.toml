@@ -2,14 +2,44 @@
 default = "mise tasks ls"
 list = "mise tasks ls"
 
+# Setup & Initialization
 setup = "doppler run --project project-proxmoxhosts -- ansible-galaxy install -r roles/requirements.yml --force"
 init = "mise run setup"
+
+# Main Deployment Tasks
 plan = ".mise/tasks/run-site --check --diff"
 check = ".mise/tasks/run-site --check --diff"
 apply = ".mise/tasks/run-site"
 "apply-verbose" = ".mise/tasks/run-site -vv"
 "apply-no-ssh" = ".mise/tasks/run-site --skip-tags ssh_cluster_config"
+"apply-networking-targeted" = ".mise/tasks/run-site --tags networking --limit pve-2.fabricesemti.dev"
 
+# Beszel Agent Tasks
+"beszel-agent-plan" = ".mise/tasks/run-site --tags beszel_agent --check --diff"
+"beszel-agent-apply" = ".mise/tasks/run-site --tags beszel_agent"
+"beszel-agent-remove-plan" = ".mise/tasks/run-site --tags beszel_agent -e '_beszel_state=absent' --check --diff"
+"beszel-agent-remove-apply" = ".mise/tasks/run-site --tags beszel_agent -e '_beszel_state=absent'"
+
+# Cluster Management
+"cluster-add-nodes" = ".mise/tasks/run-playbook add_remaining_nodes.yml"
+"cluster-configure-network" = ".mise/tasks/run-playbook configure_secondary_network.yml"
+
+# Notifications & SMTP
+"smtp-configure" = ".mise/tasks/run-site --tags gmail_smtp"
+"smtp-test" = ".mise/tasks/run-site --tags gmail_smtp -e '{\"proxmox_notification_test\": true}'"
+
+# Backup Management
+"backup-configure" = ".mise/tasks/run-site --tags backup"
+
+# API & Automation
+"api-tokens" = ".mise/tasks/run-site --tags api_tokens"
+"api-pools" = ".mise/tasks/run-site --tags pools"
+"api-pools-check" = ".mise/tasks/run-site --tags pools --check --diff"
+"api-setup" = ".mise/tasks/run-site --tags api_tokens,pools"
+
+# Ceph Storage Management
 "ceph-remove-storage-plan" = ".mise/tasks/run-playbook remove_cephfs_storage.yml --check --diff"
 "ceph-remove-storage-apply" = ".mise/tasks/run-playbook remove_cephfs_storage.yml"
+
+# Network Configuration
 "network-configure-secondary" = ".mise/tasks/run-playbook configure_secondary_network.yml"
