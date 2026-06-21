@@ -369,6 +369,24 @@ deep_scrub_all() {
     log_info "Deep-scrub initiated. This runs in background. Check 'ceph -s' for progress."
 }
 
+set_scrub_window() {
+    local begin=${1:-2}
+    local end=${2:-6}
+    log_info "Setting Ceph scrub window to ${begin}:00-${end}:00..."
+    ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$HEALTHY_NODE "
+        ceph config set osd osd_scrub_begin_hour $begin
+        ceph config set osd osd_scrub_end_hour $end
+    "
+    log_info "Scrub window set to ${begin}:00-${end}:00."
+}
+
+check_fragmentation() {
+    log_info "Checking BlueStore fragmentation..."
+    ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$HEALTHY_NODE "
+        ceph health detail 2>/dev/null | grep -A 10 BLUESTORE_FREE_FRAGMENTATION || echo 'No fragmentation warnings.'
+    "
+}
+
 usage() {
     echo "Usage: $0 [options]"
     echo "Options:"
@@ -382,6 +400,8 @@ usage() {
     echo "  --repair-osd <IP>      Attempt BlueStore repair on OSD at given node."
     echo "  --recreate-osd <IP>    Destroy and recreate OSD on given node (data loss!)."
     echo "  --deep-scrub           Initiate deep-scrub on all PGs."
+    echo "  --set-scrub-window [b] [e] Set scrub window (begin hour, end hour). Defaults 2-6."
+    echo "  --fragmentation        Check BlueStore fragmentation health."
     echo "  --help                 Show this help message."
 }
 
@@ -392,6 +412,8 @@ fi
 
 case "$1" in
     --maintenance)
+        set_scrub_window
+        deep_scrub_all
         for node in "${ALL_NODES[@]}"; do
             if check_ssh $node; then
                 fix_log_permissions $node
@@ -449,6 +471,12 @@ case "$1" in
         ;;
     --deep-scrub)
         deep_scrub_all
+        ;;
+    --set-scrub-window)
+        set_scrub_window "${2:-2}" "${3:-6}"
+        ;;
+    --fragmentation)
+        check_fragmentation
         ;;
     *)
         usage

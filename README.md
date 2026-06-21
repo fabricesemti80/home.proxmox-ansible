@@ -211,47 +211,51 @@ source .envrc
 
 ```bash
 # Install Ansible Galaxy requirements
-mise run init
+task init
 ```
 
 ### 4. Deploy the Cluster
 
 ```bash
 # Dry run to preview changes
-mise run plan
+task plan
 
 # Full deployment
-mise run apply
+task apply
 ```
 
 ## Available Tasks
 
 ```bash
 # Setup & Initialization
-mise run init                     # Install Ansible Galaxy requirements
-mise run setup                    # Same as init
+task init                         # Install Ansible Galaxy requirements
+task setup                        # Same as init
 
 # Main Deployment
-mise run plan                     # Preview full deployment changes
-mise run check                    # Alias for plan
-mise run apply                    # Apply full deployment
-mise run apply-verbose            # Apply with verbose output
-mise run apply-no-ssh             # Apply while skipping ssh_cluster_config
+task plan                         # Preview full deployment changes
+task check                        # Alias for plan
+task apply                        # Apply full deployment
+task apply-verbose                # Apply with verbose output
+task apply-no-ssh                 # Apply while skipping ssh_cluster_config
 
 # Role-scoped runs against site.yml tags
-mise run role-plan beszel_agent   # Preview only the Beszel agent role
-mise run role-apply beszel_agent  # Apply only the Beszel agent role
-mise run role-plan gmail_smtp     # Preview Gmail SMTP changes
-mise run role-apply backup        # Apply backup role changes
-mise run role-apply pools         # Apply Proxmox pool changes
+task role-plan -- beszel_agent    # Preview only the Beszel agent role
+task role-apply -- beszel_agent   # Apply only the Beszel agent role
+task role-plan -- gmail_smtp      # Preview Gmail SMTP changes
+task role-apply -- backup         # Apply backup role changes
+task role-apply -- pools          # Apply Proxmox pool changes
 
 # Optional extra ansible-playbook flags after --
-mise run role-apply beszel_agent -- -e "_beszel_state=absent"
+task role-apply -- beszel_agent -e "_beszel_state=absent"
 
 # Standalone playbooks
-mise run network-configure-secondary
-mise run ceph-remove-storage-plan
-mise run ceph-remove-storage-apply
+task network-configure-secondary
+task ceph-remove-storage-plan
+task ceph-remove-storage-apply
+
+# Weekly Ceph maintenance schedule
+task ceph-maintenance-plan
+task ceph-maintenance-apply
 ```
 
 These commands use SSH key auth by default.
@@ -266,7 +270,7 @@ Test email functionality after deployment:
 
 ```bash
 # Send test email via Ansible
-mise run role-apply gmail_smtp -- -e '{"proxmox_notification_test": true}'
+task role-apply -- gmail_smtp -e '{"proxmox_notification_test": true}'
 
 # Manual test from any Proxmox node
 ssh root@10.0.40.10
@@ -319,6 +323,16 @@ template_backup:
 
 Monitor backups via Proxmox web UI: **Datacenter → Backup**
 
+### Ceph Maintenance
+
+The site play schedules weekly Ceph maintenance on every Proxmox node for Sunday at 7:00 AM. It installs `/usr/local/sbin/proxmox-ceph-maintenance`, which performs the same maintenance steps as `./hack/fix-ceph.sh --maintenance` locally on each node:
+
+- Fix `/var/log/ceph` if it was accidentally created as a file
+- Ensure `/var/log/ceph` is owned by `ceph:ceph` with mode `750`
+- Restart `ceph-mon.target`, `ceph-mgr.target`, `ceph-mds.target`, and `ceph-osd.target`
+
+Use `task ceph-maintenance-apply` to configure only this schedule.
+
 ### High Availability Access
 
 The cluster uses Keepalived with VRRP to provide a floating VIP for GUI access:
@@ -335,10 +349,10 @@ Resource pools can be configured to organize VMs and storage:
 
 ```bash
 # Create/update pools
-task api:pools
+task api-pools
 
 # Preview changes
-task api:pools:check
+task api-pools-check
 ```
 
 Configure pools in `group_vars/pve01`:
