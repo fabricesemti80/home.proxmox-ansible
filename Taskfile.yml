@@ -193,6 +193,33 @@ tasks:
     cmds:
       - task run-site -- --tags api_tokens,pools
 
+  vm-create:
+    desc: Create default Proxmox VM
+    cmds:
+      - task run-playbook -- create_vm.yml {{.CLI_ARGS}}
+
+  vm-plan:
+    desc: Preview default Proxmox VM changes
+    cmds:
+      - task run-playbook -- create_vm.yml --check --diff {{.CLI_ARGS}}
+
+  vm-destroy:
+    desc: Destroy default Proxmox VM
+    cmds:
+      - |
+        printf "Destroy Proxmox VM? Type destroy to continue: "
+        read -r confirm
+        if [[ "$confirm" != "destroy" ]]; then
+          echo "Aborted."
+          exit 1
+        fi
+        task run-playbook -- create_vm.yml {{.CLI_ARGS}} -e proxmox_vm_state=absent
+
+  vm-destroy-plan:
+    desc: Preview default Proxmox VM destruction
+    cmds:
+      - task run-playbook -- create_vm.yml --check --diff {{.CLI_ARGS}} -e proxmox_vm_state=absent
+
   ceph-maintenance-plan:
     desc: Preview weekly Ceph maintenance schedule
     cmds:
